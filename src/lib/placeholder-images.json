@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "A wide shot of a modern university campus.",
+      "imageUrl": "https://images.unsplash.com/photo-1576495199011-eb94736d05d6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx1bml2ZXJzaXR5JTIwY2FtcHVzfGVufDB8fHx8MTc2OTgzNTQ4OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "university campus"
+    },
+    {
+      "id": "lms",
+      "description": "Students in a classroom attentively looking at a screen.",
+      "imageUrl": "https://images.unsplash.com/photo-1758270704524-596810e891b5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjbGFzc3Jvb20lMjBzdHVkZW50c3xlbnwwfHx8fDE3Njk4NzI3NDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "classroom students"
+    },
+    {
+      "id": "collabnest",
+      "description": "A diverse group of professionals networking at an event.",
+      "imageUrl": "https://images.unsplash.com/photo-1625834317364-b32c140fd360?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBuZXR3b3JrfGVufDB8fHx8MTc2OTk0Mzg3M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "professional network"
+    },
+    {
+      "id": "mess",
+      "description": "A clean and bustling university cafeteria during lunchtime.",
+      "imageUrl": "https://images.unsplash.com/photo-1687709645238-0470ff08a6bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx1bml2ZXJzaXR5JTIwY2FmZXRlcmlhfGVufDB8fHx8MTc2OTgzNTQ4OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "university cafeteria"
+    }
+  ]
 }
