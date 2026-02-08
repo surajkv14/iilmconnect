@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle, Link as LinkIcon, UserPlus, Trash2, Upload } from 'lucide-react';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle, UserPlus, Trash2, Upload } from 'lucide-react';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 import { CreateAssignmentDialog } from '@/components/lms/CreateAssignmentDialog';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 interface Course {
@@ -25,7 +25,6 @@ interface Course {
   semester: string;
   instructor: string;
   teacherId: string;
-  inviteCode?: string;
 }
 
 interface Assignment {
@@ -263,23 +262,6 @@ export default function CourseDetailPage() {
     );
     
     const FacultyView = () => {
-      const handleGenerateInviteLink = () => {
-        if (!firestore || !classId) return;
-        const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-        
-        if (courseRef) {
-          updateDocumentNonBlocking(courseRef, { inviteCode: inviteCode });
-        }
-        
-        const inviteLink = `${window.location.origin}/lms/enroll?classId=${classId}&code=${inviteCode}`;
-        
-        navigator.clipboard.writeText(inviteLink).then(() => {
-          toast({
-            title: 'Invite Link Copied!',
-            description: 'The invite link has been copied to your clipboard.',
-          });
-        });
-      };
       
       return (
         <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -334,13 +316,9 @@ export default function CourseDetailPage() {
             <Card>
               <CardHeader>
                   <CardTitle>Student Management</CardTitle>
-                  <CardDescription>Invite students and manage enrollment.</CardDescription>
+                  <CardDescription>Manage your class roster.</CardDescription>
               </CardHeader>
               <CardContent>
-                 <Button onClick={handleGenerateInviteLink} className="w-full">
-                    <LinkIcon className="mr-2" />
-                    Generate & Copy Invite Link
-                  </Button>
                   <AlertDialog open={!!studentToRemove} onOpenChange={(isOpen) => !isOpen && setStudentToRemove(null)}>
                     <div className="mt-6">
                       <h4 className="font-medium mb-2">Enrolled Students</h4>
