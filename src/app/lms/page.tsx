@@ -9,7 +9,10 @@ import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-import { BookCopy, Users, ClipboardCheck } from 'lucide-react';
+import { BookCopy, Users, ClipboardCheck, PlusCircle } from 'lucide-react';
+import { useState } from 'react';
+import { CreateClassDialog } from '@/components/lms/CreateClassDialog';
+import { Button } from '@/components/ui/button';
 
 interface Course {
   id: string;
@@ -148,6 +151,7 @@ const StudentDashboard = () => {
 const FacultyDashboard = () => {
     const { user } = useUser();
     const firestore = useFirestore();
+    const [isCreateClassOpen, setCreateClassOpen] = useState(false);
 
     const coursesQuery = useMemoFirebase(() =>
         (firestore && user) ? query(collection(firestore, 'classes'), where('teacherId', '==', user.uid)) : null,
@@ -161,6 +165,7 @@ const FacultyDashboard = () => {
 
     return (
         <div className="space-y-8">
+            <CreateClassDialog isOpen={isCreateClassOpen} setIsOpen={setCreateClassOpen} />
              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -194,7 +199,13 @@ const FacultyDashboard = () => {
                 </Card>
             </div>
             <div>
-                <h2 className="text-2xl font-bold tracking-tight mb-4">Courses You Teach</h2>
+                 <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold tracking-tight">Courses You Teach</h2>
+                    <Button onClick={() => setCreateClassOpen(true)}>
+                        <PlusCircle className="mr-2" />
+                        Create Class
+                    </Button>
+                </div>
                 {isLoadingCourses ? (
                      <div className="grid gap-6 md:grid-cols-2">
                         <Skeleton className="h-48" />
@@ -209,7 +220,7 @@ const FacultyDashboard = () => {
                 ) : (
                     <Card>
                         <CardContent className="p-8 text-center text-muted-foreground">
-                            <p>You are not assigned as an instructor to any courses.</p>
+                            <p>You are not assigned as an instructor to any courses. Click "Create Class" to get started.</p>
                         </CardContent>
                     </Card>
                 )}
@@ -264,5 +275,3 @@ export default function LmsPage() {
         </div>
     );
 }
-
-    
