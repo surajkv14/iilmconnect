@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, MessageSquare, MoreHorizontal, Repeat2, UserCheck, Mail, Briefcase, Edit } from 'lucide-react';
+import { Heart, MessageSquare, MoreHorizontal, Repeat2, UserCheck, Mail, Briefcase, Edit, KeyRound } from 'lucide-react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, useAuth } from '@/firebase';
 import { collection, query, where, doc, Timestamp, orderBy } from 'firebase/firestore';
@@ -16,15 +16,18 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { updateProfile } from 'firebase/auth';
+import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
+import { Textarea } from '@/components/ui/textarea';
 
 interface UserProfile {
   id: string;
   email: string;
+  username?: string;
   firstName?: string;
   lastName?: string;
   displayName?: string;
   photoURL?: string;
+  bio?: string;
   userType: 'student' | 'faculty' | 'alumni' | 'admin';
 }
 
@@ -51,6 +54,8 @@ export default function ProfilePage() {
 
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [newBio, setNewBio] = useState('');
 
   const userProfileRef = useMemoFirebase(() => (firestore && userId) ? doc(firestore, 'users', userId) : null, [firestore, userId]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
@@ -77,20 +82,38 @@ export default function ProfilePage() {
   };
   
   const handleProfileUpdate = async () => {
-    if (!currentUser || !auth.currentUser || !newDisplayName.trim()) return;
+    if (!currentUser || !auth.currentUser) return;
+
+    const trimmedDisplayName = newDisplayName.trim();
+    const trimmedUsername = newUsername.trim();
+
+    if (!trimmedDisplayName || !trimmedUsername) {
+        toast({
+            variant: 'destructive',
+            title: 'Validation Error',
+            description: 'Display Name and Username cannot be empty.',
+        });
+        return;
+    }
 
     try {
-      // 1. Update Firebase Auth profile
-      await updateProfile(auth.currentUser, { displayName: newDisplayName.trim() });
+      const updateData: Partial<UserProfile> = {
+        displayName: trimmedDisplayName,
+        username: trimmedUsername,
+        bio: newBio.trim(),
+      };
+
+      // 1. Update Firebase Auth profile (only displayName and photoURL are supported)
+      await updateProfile(auth.currentUser, { displayName: trimmedDisplayName });
       
       // 2. Update Firestore document
       if (userProfileRef) {
-        updateDocumentNonBlocking(userProfileRef, { displayName: newDisplayName.trim() });
+        updateDocumentNonBlocking(userProfileRef, updateData);
       }
 
       toast({
         title: 'Profile Updated',
-        description: 'Your display name has been successfully updated.',
+        description: 'Your profile has been successfully updated.',
       });
       setEditDialogOpen(false);
     } catch (error) {
@@ -102,13 +125,43 @@ export default function ProfilePage() {
       });
     }
   };
+  
+  const handlePasswordReset = () => {
+    if (!auth || !currentUser?.email) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not send password reset email. User not found.',
+      });
+      return;
+    }
+
+    sendPasswordResetEmail(auth, currentUser.email)
+      .then(() => {
+        toast({
+          title: 'Password Reset Email Sent',
+          description: `An email has been sent to ${currentUser.email} with instructions to reset your password.`,
+        });
+      })
+      .catch((error) => {
+        console.error("Error sending password reset email: ", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to send password reset email. Please try again later.',
+        });
+      });
+  };
 
   const isLoading = isCurrentUserLoading || isProfileLoading;
 
   if (isLoading) {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            <div className="lg:col-span-1"><Skeleton className="h-64 w-full" /></div>
+            <div className="lg:col-span-1 space-y-8">
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-40 w-full" />
+            </div>
             <div className="lg:col-span-2 space-y-6"><Skeleton className="h-48 w-full" /></div>
         </div>
     );
@@ -176,8 +229,7 @@ export default function ProfilePage() {
             <h1 className="text-3xl font-bold tracking-tight">User Profile</h1>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            {/* Profile Card */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-8">
                 <Card>
                     <CardContent className="pt-6 flex flex-col items-center text-center">
                         <Avatar className="size-24 mb-4">
@@ -185,7 +237,11 @@ export default function ProfilePage() {
                             <AvatarFallback>{userProfile.email?.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <h2 className="text-2xl font-bold">{userProfile.displayName || `${userProfile.firstName} ${userProfile.lastName}`}</h2>
+                        {userProfile.username && <p className="text-muted-foreground">@{userProfile.username}</p>}
                         <p className="text-muted-foreground capitalize">{userProfile.userType} Profile</p>
+                        
+                        {userProfile.bio && <p className="mt-4 text-sm text-center max-w-xs">{userProfile.bio}</p>}
+
                         <div className="mt-6 w-full text-left space-y-3">
                             <div className="flex items-center gap-3 text-sm">
                                 <Mail className="size-4 text-muted-foreground" />
@@ -201,7 +257,12 @@ export default function ProfilePage() {
                         {currentUser?.uid === userId ? (
                              <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
                                 <DialogTrigger asChild>
-                                  <Button variant="outline" className="w-full" onClick={() => setNewDisplayName(userProfile.displayName || '')}>
+                                  <Button variant="outline" className="w-full" onClick={() => {
+                                      setNewDisplayName(userProfile.displayName || '');
+                                      setNewUsername(userProfile.username || '');
+                                      setNewBio(userProfile.bio || '');
+                                      setEditDialogOpen(true);
+                                  }}>
                                     <Edit className="mr-2" /> Edit Profile
                                   </Button>
                                 </DialogTrigger>
@@ -209,20 +270,21 @@ export default function ProfilePage() {
                                     <DialogHeader>
                                         <DialogTitle>Edit Profile</DialogTitle>
                                         <DialogDescription>
-                                            Update your display name. Click save when you're done.
+                                            Update your profile information. Click save when you're done.
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="grid gap-4 py-4">
                                         <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="displayName" className="text-right">
-                                                Display Name
-                                            </Label>
-                                            <Input
-                                                id="displayName"
-                                                value={newDisplayName}
-                                                onChange={(e) => setNewDisplayName(e.target.value)}
-                                                className="col-span-3"
-                                            />
+                                            <Label htmlFor="displayName" className="text-right">Display Name</Label>
+                                            <Input id="displayName" value={newDisplayName} onChange={(e) => setNewDisplayName(e.target.value)} className="col-span-3" />
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="username" className="text-right">Username</Label>
+                                            <Input id="username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="col-span-3" />
+                                        </div>
+                                        <div className="grid grid-cols-4 items-start gap-4">
+                                            <Label htmlFor="bio" className="text-right pt-2">Bio</Label>
+                                            <Textarea id="bio" value={newBio} onChange={(e) => setNewBio(e.target.value)} className="col-span-3" />
                                         </div>
                                     </div>
                                     <DialogFooter>
@@ -236,6 +298,20 @@ export default function ProfilePage() {
                        
                     </CardFooter>
                 </Card>
+
+                {currentUser?.uid === userId && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Security</CardTitle>
+                            <CardDescription>Manage your account security settings.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button variant="outline" className="w-full" onClick={handlePasswordReset}>
+                                <KeyRound className="mr-2" /> Send Password Reset Email
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             {/* Posts Feed */}

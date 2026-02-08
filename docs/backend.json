@@ -10,6 +10,10 @@
           "type": "string",
           "description": "Unique identifier for the User entity."
         },
+        "username": {
+          "type": "string",
+          "description": "User's unique username."
+        },
         "email": {
           "type": "string",
           "description": "User's email address (university domain).",
@@ -27,6 +31,10 @@
           "type": "string",
           "description": "User's display name."
         },
+        "bio": {
+          "type": "string",
+          "description": "A short user bio."
+        },
         "photoURL": {
           "type": "string",
           "description": "URL of the user's profile picture."
@@ -38,6 +46,7 @@
       },
       "required": [
         "id",
+        "username",
         "email",
         "userType"
       ]

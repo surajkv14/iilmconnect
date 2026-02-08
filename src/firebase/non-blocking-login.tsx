@@ -39,6 +39,7 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
         userType = 'faculty';
       }
       
+      const username = email.split('@')[0];
       const displayName = email.split('@')[0];
       const photoURL = `https://picsum.photos/seed/${user.uid}/96/96`;
 
@@ -53,7 +54,9 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
         id: user.uid,
         email: user.email,
         userType: userType,
+        username: username,
         displayName: displayName,
+        bio: '',
         photoURL: photoURL
       }, {});
     })
@@ -80,6 +83,7 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
             userType = 'faculty';
         }
 
+        const username = user.displayName || email.split('@')[0];
         const displayName = user.displayName || email.split('@')[0];
         const photoURL = user.photoURL || `https://picsum.photos/seed/${user.uid}/96/96`;
         
@@ -91,7 +95,9 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
             id: user.uid,
             email: user.email,
             userType: userType,
+            username: username,
             displayName: displayName,
+            bio: '',
             photoURL: photoURL
         }, {});
       }
