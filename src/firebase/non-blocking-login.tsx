@@ -32,7 +32,13 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
       const firestore = getFirestore(authInstance.app);
       const userDocRef = doc(firestore, 'users', user.uid);
 
-      const userType = email === 'admin@iilm.edu' ? 'admin' : 'student';
+      let userType: 'admin' | 'faculty' | 'student' = 'student';
+      if (email === 'admin@iilm.edu') {
+        userType = 'admin';
+      } else if (email === 'testfaculty@iilm.edu') {
+        userType = 'faculty';
+      }
+      
       const displayName = email.split('@')[0];
       const photoURL = `https://picsum.photos/seed/${user.uid}/96/96`;
 
@@ -67,7 +73,13 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
       const docSnap = await getDoc(userDocRef);
       if (!docSnap.exists()) {
         // Doc doesn't exist, create it. This handles users created before this fix.
-        const userType = email === 'admin@iilm.edu' ? 'admin' : 'student';
+        let userType: 'admin' | 'faculty' | 'student' = 'student';
+        if (email === 'admin@iilm.edu') {
+            userType = 'admin';
+        } else if (email === 'testfaculty@iilm.edu') {
+            userType = 'faculty';
+        }
+
         const displayName = user.displayName || email.split('@')[0];
         const photoURL = user.photoURL || `https://picsum.photos/seed/${user.uid}/96/96`;
         
