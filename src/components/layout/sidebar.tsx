@@ -29,6 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -59,33 +60,43 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/" isActive={pathname === '/'} tooltip="Dashboard">
-              <LayoutDashboard />
-              <span>Dashboard</span>
+            <SidebarMenuButton asChild isActive={pathname === '/'} tooltip="Dashboard">
+              <Link href="/">
+                <LayoutDashboard />
+                <span>Dashboard</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/lms" isActive={pathname.startsWith('/lms')} tooltip="LMS">
-              <BookCopy />
-              <span>LMS Portal</span>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/lms')} tooltip="LMS">
+              <Link href="/lms">
+                <BookCopy />
+                <span>LMS Portal</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/collabnest" isActive={pathname.startsWith('/collabnest')} tooltip="CollabNest">
-              <Users />
-              <span>CollabNest</span>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/collabnest')} tooltip="CollabNest">
+              <Link href="/collabnest">
+                <Users />
+                <span>CollabNest</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/smart-mess" isActive={pathname.startsWith('/smart-mess')} tooltip="Mess">
-              <Utensils />
-              <span>Smart Mess</span>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/smart-mess')} tooltip="Mess">
+              <Link href="/smart-mess">
+                <Utensils />
+                <span>Smart Mess</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/admin" isActive={pathname.startsWith('/admin')} tooltip="Admin">
-              <Shield />
-              <span>Admin Panel</span>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/admin')} tooltip="Admin">
+              <Link href="/admin">
+                <Shield />
+                <span>Admin Panel</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
