@@ -109,7 +109,7 @@ export default function Home() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Welcome to UniVerse!</CardTitle>
+          <CardTitle>Welcome to IILM University!</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">

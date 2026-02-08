@@ -49,7 +49,7 @@ export function AppSidebar() {
             className="text-xl font-semibold text-primary"
             style={{ opacity: state === 'expanded' ? 1 : 0, transition: 'opacity 0.2s' }}
           >
-            UniVerse
+            IILM University
           </span>
         </div>
       </SidebarHeader>

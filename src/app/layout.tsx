@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'UniVerse – AI-Powered Smart Campus Platform',
+  title: 'IILM University – AI-Powered Smart Campus Platform',
   description: 'A unified platform for students, faculty, alumni, and staff at IILM University.',
 };
 
