@@ -7,14 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle } from 'lucide-react';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, query, where } from 'firebase/firestore';
+import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle, Link as LinkIcon, UserPlus, Trash2 } from 'lucide-react';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking } from '@/firebase';
+import { doc, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { CreateAssignmentDialog } from '@/components/lms/CreateAssignmentDialog';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 interface Course {
   id: string;
@@ -22,6 +23,7 @@ interface Course {
   code: string;
   instructor: string;
   teacherId: string;
+  inviteCode?: string;
 }
 
 interface Assignment {
@@ -38,6 +40,14 @@ interface UserGrade {
   grade: string;
 }
 
+interface EnrolledStudent {
+    id: string; // student's UID
+    studentName: string;
+    studentEmail: string;
+    enrollmentDate: any;
+}
+
+
 export default function CourseDetailPage() {
     const params = useParams();
     // The parameter is the Firestore document ID, even though the filename is [courseCode]
@@ -45,6 +55,7 @@ export default function CourseDetailPage() {
     
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const [isCreateAssignmentOpen, setCreateAssignmentOpen] = useState(false);
 
@@ -56,6 +67,9 @@ export default function CourseDetailPage() {
 
     const gradesQuery = useMemoFirebase(() => (user && firestore && classId) ? query(collection(firestore, 'users', user.uid, 'grades'), where('classId', '==', classId)) : null, [user, firestore, classId]);
     const { data: grades, isLoading: isLoadingGrades } = useCollection<UserGrade>(gradesQuery);
+
+    const enrolledStudentsQuery = useMemoFirebase(() => (firestore && classId) ? collection(firestore, 'classes', classId, 'students') : null, [firestore, classId]);
+    const { data: enrolledStudents, isLoading: isLoadingEnrolledStudents } = useCollection<EnrolledStudent>(enrolledStudentsQuery);
     
     const isTeacher = !isLoadingCourse && !isUserLoading && user?.uid === course?.teacherId;
 
@@ -197,55 +211,114 @@ export default function CourseDetailPage() {
       </>
     );
     
-    const FacultyView = () => (
-      <>
-        <CreateAssignmentDialog
-          classId={classId}
-          isOpen={isCreateAssignmentOpen}
-          setIsOpen={setCreateAssignmentOpen}
-        />
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-4">
-                <ClipboardCheck className="size-8 text-primary" />
-                <CardTitle>Assignment Management</CardTitle>
-              </div>
-              <Button onClick={() => setCreateAssignmentOpen(true)}>
-                <PlusCircle className="mr-2" />
-                Create Assignment
-              </Button>
-          </CardHeader>
-          <CardContent>
-              {isLoadingAssignments ? <Skeleton className="h-24" /> : assignments && assignments.length > 0 ? (
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Due Date</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {assignments.map((assignment) => (
-                            <TableRow key={assignment.id}>
-                                <TableCell className="font-medium">{assignment.title}</TableCell>
-                                <TableCell>{format(new Date(assignment.dueDate), 'MMM dd, yyyy')}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button asChild variant="outline" size="sm">
-                                      <Link href={`/lms/${classId}/assignments/${assignment.id}/grades`}>
-                                        Manage Grades
-                                      </Link>
-                                    </Button>
-                                </TableCell>
+    const FacultyView = () => {
+      const handleGenerateInviteLink = () => {
+        if (!firestore || !classId) return;
+        const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        
+        if (courseRef) {
+          updateDocumentNonBlocking(courseRef, { inviteCode: inviteCode });
+        }
+        
+        const inviteLink = `${window.location.origin}/lms/enroll?classId=${classId}&code=${inviteCode}`;
+        
+        navigator.clipboard.writeText(inviteLink).then(() => {
+          toast({
+            title: 'Invite Link Copied!',
+            description: 'The invite link has been copied to your clipboard.',
+          });
+        });
+      };
+      
+      return (
+        <div className="grid lg:grid-cols-3 gap-8 items-start">
+          <div className="lg:col-span-2 space-y-8">
+            <CreateAssignmentDialog
+              classId={classId}
+              isOpen={isCreateAssignmentOpen}
+              setIsOpen={setCreateAssignmentOpen}
+            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <ClipboardCheck className="size-8 text-primary" />
+                    <CardTitle>Assignment Management</CardTitle>
+                  </div>
+                  <Button onClick={() => setCreateAssignmentOpen(true)}>
+                    <PlusCircle className="mr-2" />
+                    Create Assignment
+                  </Button>
+              </CardHeader>
+              <CardContent>
+                  {isLoadingAssignments ? <Skeleton className="h-24" /> : assignments && assignments.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Due Date</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-              ) : <p className="text-muted-foreground text-center py-8">No assignments created yet.</p>}
-          </CardContent>
-        </Card>
-      </>
-    );
+                        </TableHeader>
+                        <TableBody>
+                            {assignments.map((assignment) => (
+                                <TableRow key={assignment.id}>
+                                    <TableCell className="font-medium">{assignment.title}</TableCell>
+                                    <TableCell>{format(new Date(assignment.dueDate), 'MMM dd, yyyy')}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button asChild variant="outline" size="sm">
+                                          <Link href={`/lms/${classId}/assignments/${assignment.id}/grades`}>
+                                            Manage Grades
+                                          </Link>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                  ) : <p className="text-muted-foreground text-center py-8">No assignments created yet.</p>}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="space-y-8">
+            <Card>
+              <CardHeader>
+                  <CardTitle>Student Management</CardTitle>
+                  <CardDescription>Invite students and manage enrollment.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                 <Button onClick={handleGenerateInviteLink} className="w-full">
+                    <LinkIcon className="mr-2" />
+                    Generate & Copy Invite Link
+                  </Button>
+                  <div className="mt-6">
+                    <h4 className="font-medium mb-2">Enrolled Students</h4>
+                     {isLoadingEnrolledStudents ? <Skeleton className="h-24" /> : enrolledStudents && enrolledStudents.length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                           {enrolledStudents.map(student => (
+                              <TableRow key={student.id}>
+                                <TableCell>{student.studentName}</TableCell>
+                                <TableCell>{student.studentEmail}</TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">No students enrolled yet.</p>
+                    )}
+                  </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
 
     return (
         <div className="space-y-8">
@@ -259,5 +332,3 @@ export default function CourseDetailPage() {
         </div>
     );
 }
-
-    
