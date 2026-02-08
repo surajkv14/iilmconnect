@@ -71,19 +71,19 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#" tooltip="CollabNest">
+            <SidebarMenuButton href="/collabnest" isActive={pathname.startsWith('/collabnest')} tooltip="CollabNest">
               <Users />
               <span>CollabNest</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#" tooltip="Mess">
+            <SidebarMenuButton href="/smart-mess" isActive={pathname.startsWith('/smart-mess')} tooltip="Mess">
               <Utensils />
               <span>Smart Mess</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#" tooltip="Admin">
+            <SidebarMenuButton href="/admin" isActive={pathname.startsWith('/admin')} tooltip="Admin">
               <Shield />
               <span>Admin Panel</span>
             </SidebarMenuButton>
