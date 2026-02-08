@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,6 +77,16 @@ const MealCard = ({ title, items }: { title: string, items: typeof menuData.toda
 )
 
 export default function SmartMessPage() {
+  const [bookedMeals, setBookedMeals] = useState<{ [key: string]: boolean }>({
+    breakfast: false,
+    lunch: false,
+    dinner: true,
+  });
+
+  const toggleMealBooking = (meal: string) => {
+    setBookedMeals((prev) => ({ ...prev, [meal]: !prev[meal] }));
+  };
+
   return (
     <div className="space-y-8">
         <div className="flex items-center justify-between space-y-2">
@@ -115,9 +126,24 @@ export default function SmartMessPage() {
                 <div>
                     <h3 className="font-medium mb-2">Book Your Meal for Today</h3>
                     <div className="flex flex-wrap gap-4">
-                        <Button variant="outline">Breakfast</Button>
-                        <Button variant="outline">Lunch</Button>
-                        <Button variant="default">Dinner (Booked)</Button>
+                        <Button
+                            variant={bookedMeals.breakfast ? 'default' : 'outline'}
+                            onClick={() => toggleMealBooking('breakfast')}
+                        >
+                            {bookedMeals.breakfast ? 'Breakfast (Booked)' : 'Breakfast'}
+                        </Button>
+                        <Button
+                            variant={bookedMeals.lunch ? 'default' : 'outline'}
+                            onClick={() => toggleMealBooking('lunch')}
+                        >
+                            {bookedMeals.lunch ? 'Lunch (Booked)' : 'Lunch'}
+                        </Button>
+                        <Button
+                            variant={bookedMeals.dinner ? 'default' : 'outline'}
+                            onClick={() => toggleMealBooking('dinner')}
+                        >
+                           {bookedMeals.dinner ? 'Dinner (Booked)' : 'Dinner'}
+                        </Button>
                     </div>
                 </div>
                 <div>
