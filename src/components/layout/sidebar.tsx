@@ -28,9 +28,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '../ui/button';
+import { usePathname } from 'next/navigation';
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const pathname = usePathname();
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -56,13 +59,13 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#" isActive tooltip="Dashboard">
+            <SidebarMenuButton href="/" isActive={pathname === '/'} tooltip="Dashboard">
               <LayoutDashboard />
               <span>Dashboard</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#" tooltip="LMS">
+            <SidebarMenuButton href="/lms" isActive={pathname.startsWith('/lms')} tooltip="LMS">
               <BookCopy />
               <span>LMS Portal</span>
             </SidebarMenuButton>
