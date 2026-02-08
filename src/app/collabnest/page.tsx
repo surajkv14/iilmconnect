@@ -26,6 +26,16 @@ interface Post {
   imageHint?: string;
 }
 
+interface Comment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  content: string;
+  timestamp: Timestamp | null;
+}
+
 const initialWhoToFollow = [
   { name: 'Dr. Tim Berners-Lee', title: 'Web Development Professor', avatar: 'https://picsum.photos/seed/berners-lee/40/40', isFollowing: false },
   { name: 'Alumni Association', title: 'Official Alumni Network', avatar: 'https://picsum.photos/seed/alumni/40/40', isFollowing: false },
@@ -37,6 +47,7 @@ export default function CollabNestPage() {
   
   const [newPostContent, setNewPostContent] = useState('');
   const [whoToFollow, setWhoToFollow] = useState(initialWhoToFollow);
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   
   // Memoize the Firestore query to prevent re-running on every render
   const postsQuery = useMemoFirebase(() => 
@@ -85,6 +96,87 @@ export default function CollabNestPage() {
         ? { ...person, isFollowing: !person.isFollowing }
         : person
     ));
+  };
+
+  // Component for displaying and adding comments
+  const CommentSection = ({ postId }: { postId: string }) => {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const [newComment, setNewComment] = useState('');
+
+    const commentsQuery = useMemoFirebase(
+      () => firestore ? query(collection(firestore, 'posts', postId, 'comments'), orderBy('timestamp', 'asc')) : null,
+      [firestore, postId]
+    );
+    const { data: comments, isLoading: isLoadingComments } = useCollection<Comment>(commentsQuery);
+
+    const handleAddComment = () => {
+      if (!newComment.trim() || !user || !firestore) return;
+
+      const commentData = {
+        postId: postId,
+        authorId: user.uid,
+        authorName: user.displayName || user.email || 'Anonymous',
+        authorAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`,
+        content: newComment,
+        timestamp: serverTimestamp(),
+      };
+
+      addDocumentNonBlocking(collection(firestore, 'posts', postId, 'comments'), commentData);
+      setNewComment('');
+    };
+
+    return (
+      <div className="pt-4 mt-4 border-t">
+        {/* Add comment form */}
+        {user && (
+          <div className="flex items-start gap-4 mb-6">
+            <Avatar className="size-9">
+              <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} alt={user.displayName || 'user'} />
+              <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="w-full flex items-center gap-2">
+              <Textarea
+                placeholder="Add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="w-full bg-muted border-0 focus-visible:ring-1 ring-primary p-2"
+                rows={1}
+              />
+              <Button onClick={handleAddComment} disabled={!newComment.trim()} size="icon">
+                <Send className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* List of comments */}
+        <div className="space-y-4">
+          {isLoadingComments && <Skeleton className="h-16 w-full" />}
+          {comments && comments.length > 0 ? (
+            comments.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-3">
+                <Avatar className="size-9">
+                  <AvatarImage src={comment.authorAvatar} alt={comment.authorName} />
+                  <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="bg-muted rounded-lg px-4 py-2">
+                    <p className="font-semibold text-sm">{comment.authorName}</p>
+                    <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {comment.timestamp ? formatDistanceToNowStrict(comment.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            !isLoadingComments && <p className="text-sm text-muted-foreground text-center">No comments yet.</p>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -189,13 +281,18 @@ export default function CollabNestPage() {
                   <Button variant="ghost" size="sm" className={`flex items-center gap-2 ${isLiked ? 'text-destructive' : 'text-muted-foreground'} hover:text-destructive`} onClick={() => handleLike(post)} disabled={!user}>
                       <Heart className="size-5" fill={isLiked ? 'hsl(var(--destructive))' : 'none'} /> <span>{post.likedBy?.length || 0}</span>
                   </Button>
-                  <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
-                      <MessageSquare className="size-5" /> <span>0</span>
+                  <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground" onClick={() => setExpandedPostId(expandedPostId === post.id ? null : post.id)}>
+                      <MessageSquare className="size-5" />
                   </Button>
                   <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
                       <Repeat2 className="size-5" /> <span>0</span>
                   </Button>
                 </CardFooter>
+                 {expandedPostId === post.id && (
+                    <CardContent className="pb-4">
+                        <CommentSection postId={post.id} />
+                    </CardContent>
+                )}
               </Card>
             )
           })}
@@ -274,5 +371,3 @@ export default function CollabNestPage() {
     </div>
   );
 }
-
-    
