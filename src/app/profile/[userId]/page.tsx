@@ -1,16 +1,22 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, MessageSquare, MoreHorizontal, Repeat2, UserCheck, Mail, Briefcase } from 'lucide-react';
+import { Heart, MessageSquare, MoreHorizontal, Repeat2, UserCheck, Mail, Briefcase, Edit } from 'lucide-react';
 import Image from 'next/image';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, useAuth } from '@/firebase';
 import { collection, query, where, doc, Timestamp, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNowStrict } from 'date-fns';
 import Link from 'next/link';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { updateProfile } from 'firebase/auth';
 
 interface UserProfile {
   id: string;
@@ -40,6 +46,11 @@ export default function ProfilePage() {
 
   const { user: currentUser, isUserLoading: isCurrentUserLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { toast } = useToast();
+
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState('');
 
   const userProfileRef = useMemoFirebase(() => (firestore && userId) ? doc(firestore, 'users', userId) : null, [firestore, userId]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
@@ -65,6 +76,33 @@ export default function ProfilePage() {
     updateDocumentNonBlocking(postRef, { likedBy: newLikedBy });
   };
   
+  const handleProfileUpdate = async () => {
+    if (!currentUser || !auth.currentUser || !newDisplayName.trim()) return;
+
+    try {
+      // 1. Update Firebase Auth profile
+      await updateProfile(auth.currentUser, { displayName: newDisplayName.trim() });
+      
+      // 2. Update Firestore document
+      if (userProfileRef) {
+        updateDocumentNonBlocking(userProfileRef, { displayName: newDisplayName.trim() });
+      }
+
+      toast({
+        title: 'Profile Updated',
+        description: 'Your display name has been successfully updated.',
+      });
+      setEditDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating profile: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: 'Could not update your profile. Please try again.',
+      });
+    }
+  };
+
   const isLoading = isCurrentUserLoading || isProfileLoading;
 
   if (isLoading) {
@@ -161,7 +199,37 @@ export default function ProfilePage() {
                     </CardContent>
                     <CardFooter>
                         {currentUser?.uid === userId ? (
-                             <Button variant="outline" className="w-full">Edit Profile</Button>
+                             <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="w-full" onClick={() => setNewDisplayName(userProfile.displayName || '')}>
+                                    <Edit className="mr-2" /> Edit Profile
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Edit Profile</DialogTitle>
+                                        <DialogDescription>
+                                            Update your display name. Click save when you're done.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="displayName" className="text-right">
+                                                Display Name
+                                            </Label>
+                                            <Input
+                                                id="displayName"
+                                                value={newDisplayName}
+                                                onChange={(e) => setNewDisplayName(e.target.value)}
+                                                className="col-span-3"
+                                            />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="submit" onClick={handleProfileUpdate}>Save changes</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         ) : (
                              <Button className="w-full"><UserCheck className="mr-2"/> Follow</Button>
                         )}

@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { CreateAssignmentDialog } from '@/components/lms/CreateAssignmentDialog';
+import Link from 'next/link';
 
 interface Course {
   id: string;
@@ -231,7 +232,11 @@ export default function CourseDetailPage() {
                                 <TableCell className="font-medium">{assignment.title}</TableCell>
                                 <TableCell>{format(new Date(assignment.dueDate), 'MMM dd, yyyy')}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" size="sm">Manage Grades</Button>
+                                    <Button asChild variant="outline" size="sm">
+                                      <Link href={`/lms/${classId}/assignments/${assignment.id}/grades`}>
+                                        Manage Grades
+                                      </Link>
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -240,13 +245,6 @@ export default function CourseDetailPage() {
               ) : <p className="text-muted-foreground text-center py-8">No assignments created yet.</p>}
           </CardContent>
         </Card>
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Grade Management Coming Soon</AlertTitle>
-          <AlertDescription>
-            The ability to add and edit grades for students will be implemented in a future update. An enrollment system is required to list students in this course.
-          </AlertDescription>
-        </Alert>
       </>
     );
 

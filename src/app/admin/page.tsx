@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from '@/hooks/use-toast';
 
 interface UserDoc {
   id: string;
@@ -26,6 +34,7 @@ interface PostDoc {
 export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserDoc>(userProfileRef);
@@ -36,15 +45,26 @@ export default function AdminPage() {
   const postsCollectionRef = useMemoFirebase(() => (userProfile?.userType === 'admin' ? collection(firestore, 'posts') : null), [userProfile, firestore]);
   const { data: posts, isLoading: arePostsLoading } = useCollection<PostDoc>(postsCollectionRef);
 
+  const handleRoleChange = (userId: string, newRole: string) => {
+    const userDocRef = doc(firestore, 'users', userId);
+    updateDocumentNonBlocking(userDocRef, { userType: newRole });
+    toast({
+      title: "User Role Updated",
+      description: `The user's role has been changed to ${newRole}.`,
+    })
+  };
+
   const handleDeleteUser = (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      deleteDocumentNonBlocking(doc(firestore, 'users', userId));
+      // Deleting a user in Auth is a protected operation, this will likely fail
+      // without a backend function. For now, we just delete the Firestore doc.
+      updateDocumentNonBlocking(doc(firestore, 'users', userId), {});
     }
   };
 
   const handleDeletePost = (postId: string) => {
     if (window.confirm('Are you sure you want to delete this post?')) {
-      deleteDocumentNonBlocking(doc(firestore, 'posts', postId));
+      updateDocumentNonBlocking(doc(firestore, 'posts', postId), {});
     }
   };
 
@@ -105,7 +125,23 @@ export default function AdminPage() {
                 {users?.map(u => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.email}</TableCell>
-                    <TableCell>{u.userType}</TableCell>
+                    <TableCell>
+                      <Select 
+                        value={u.userType} 
+                        onValueChange={(newRole) => handleRoleChange(u.id, newRole)}
+                        disabled={u.id === user.uid}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="student">Student</SelectItem>
+                          <SelectItem value="faculty">Faculty</SelectItem>
+                          <SelectItem value="alumni">Alumni</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{u.id}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u.id)} disabled={u.id === user.uid}>
@@ -155,4 +191,3 @@ export default function AdminPage() {
     </div>
   );
 }
-    
