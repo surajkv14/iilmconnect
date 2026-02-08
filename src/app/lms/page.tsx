@@ -5,17 +5,22 @@ import { CourseCard } from '@/components/lms/course-card';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { BookCopy, Users, ClipboardCheck } from 'lucide-react';
 
-// Updated Course type to match Firestore data model
 interface Course {
   id: string;
   name: string;
   code: string;
   instructor: string;
+  teacherId: string;
+}
+
+interface UserProfile {
+    userType: 'student' | 'faculty' | 'admin' | 'alumni';
 }
 
 const performanceData = [
@@ -52,133 +57,212 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameT
     return null;
 };
 
-export default function LmsPage() {
-  const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
-  
-  const coursesQuery = useMemoFirebase(() => 
-    (firestore && user) ? collection(firestore, 'classes') : null,
-    [firestore, user]
-  );
-  
-  const { data: courses, isLoading: isLoadingCourses } = useCollection<Course>(coursesQuery);
+const StudentDashboard = () => {
+    const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
 
-  const renderCourseCards = () => {
-    if (isLoadingCourses || isUserLoading) {
-      return (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
-        </div>
-      );
-    }
+    // For students, we show all courses as "My Courses". A real app would use an enrollment subcollection.
+    const coursesQuery = useMemoFirebase(() =>
+        (firestore) ? collection(firestore, 'classes') : null,
+        [firestore]
+    );
+    const { data: courses, isLoading: isLoadingCourses } = useCollection<Course>(coursesQuery);
 
-    if (!user) {
-      return (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <p>Please <Link href="/login" className="text-primary underline">log in</Link> to see your courses.</p>
-          </CardContent>
-        </Card>
-      );
-    }
-    
-    if (!courses || courses.length === 0) {
-       return (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <p>No courses are available at this time.</p>
-          </CardContent>
-        </Card>
-      );
+    const renderCourseCards = () => {
+        if (isLoadingCourses) {
+            return (
+                <div className="grid gap-6 md:grid-cols-2">
+                    <Skeleton className="h-48" />
+                    <Skeleton className="h-48" />
+                </div>
+            );
+        }
+        if (!courses || courses.length === 0) {
+            return (
+                <Card>
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                        <p>No courses are available at this time.</p>
+                    </CardContent>
+                </Card>
+            );
+        }
+        return (
+            <div className="grid gap-6 md:grid-cols-2">
+                {courses.map(course => (
+                    <CourseCard key={course.id} course={course} />
+                ))}
+            </div>
+        );
     }
 
     return (
-      <div className="grid gap-6 md:grid-cols-2">
-        {courses.map(course => (
-          <CourseCard key={course.id} course={course} />
-        ))}
-      </div>
+        <div className="grid gap-8 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-8">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight mb-4">My Courses</h2>
+                    {renderCourseCards()}
+                </div>
+            </div>
+            <div className="space-y-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-xl">Performance Overview</CardTitle>
+                        <CardDescription>Your scores in recent assessments.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={performanceData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                                <Tooltip
+                                    cursor={{ fill: 'hsl(var(--muted))' }}
+                                    content={<CustomTooltip />}
+                                />
+                                <Bar dataKey="score" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="text-xl">Upcoming Deadlines</CardTitle></CardHeader>
+                    <CardContent>
+                        <ul className="space-y-4">
+                            {deadlines.map((item, index) => (
+                                <li key={index} className="flex items-start justify-between">
+                                    <div>
+                                        <p className="font-medium">{item.task}</p>
+                                        <p className="text-sm text-muted-foreground">{item.course}</p>
+                                    </div>
+                                    <Badge variant="secondary" className="whitespace-nowrap">{item.due}</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
     );
-  }
+};
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">LMS Portal</h1>
-      </div>
+const FacultyDashboard = () => {
+    const { user } = useUser();
+    const firestore = useFirestore();
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-8">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight mb-4">My Courses</h2>
-            {renderCourseCards()}
-          </div>
-        </div>
+    const coursesQuery = useMemoFirebase(() =>
+        (firestore && user) ? query(collection(firestore, 'classes'), where('teacherId', '==', user.uid)) : null,
+        [firestore, user]
+    );
+    const { data: courses, isLoading: isLoadingCourses } = useCollection<Course>(coursesQuery);
 
+    // In a real app, these would be calculated with more complex queries
+    const totalStudents = 125; 
+    const totalAssignments = courses?.length ? courses.length * 3 : 0; // Mock
+
+    return (
         <div className="space-y-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-xl">Performance Overview</CardTitle>
-                    <CardDescription>Your scores in recent assessments.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={performanceData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                            <Tooltip
-                                cursor={{fill: 'hsl(var(--muted))'}}
-                                content={<CustomTooltip />}
-                            />
-                            <Bar dataKey="score" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-xl">Upcoming Deadlines</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ul className="space-y-4">
-                        {deadlines.map((item, index) => (
-                            <li key={index} className="flex items-start justify-between">
-                                <div>
-                                    <p className="font-medium">{item.task}</p>
-                                    <p className="text-sm text-muted-foreground">{item.course}</p>
-                                </div>
-                                <Badge variant="secondary" className="whitespace-nowrap">{item.due}</Badge>
-                            </li>
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Courses Teaching</CardTitle>
+                        <BookCopy className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{isLoadingCourses ? <Skeleton className="h-8 w-10"/> : courses?.length}</div>
+                        <p className="text-xs text-muted-foreground">You are the instructor for these courses.</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{totalStudents}</div>
+                        <p className="text-xs text-muted-foreground">Across all your classes.</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Assignments Graded</CardTitle>
+                        <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{totalAssignments}</div>
+                        <p className="text-xs text-muted-foreground">Needs to be graded by end of week.</p>
+                    </CardContent>
+                </Card>
+            </div>
+            <div>
+                <h2 className="text-2xl font-bold tracking-tight mb-4">Courses You Teach</h2>
+                {isLoadingCourses ? (
+                     <div className="grid gap-6 md:grid-cols-2">
+                        <Skeleton className="h-48" />
+                        <Skeleton className="h-48" />
+                    </div>
+                ) : courses && courses.length > 0 ? (
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {courses.map(course => (
+                            <CourseCard key={course.id} course={course} />
                         ))}
-                    </ul>
-                </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Announcements</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-4">
-                    {announcements.map((item, index) => (
-                        <li key={index} className="pb-4 border-b last:border-b-0 last:pb-0">
-                           <div>
-                                <p className="font-medium">{item.title}</p>
-                                <p className="text-sm text-muted-foreground">{item.course} - <span className="text-xs">{item.date}</span></p>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-              </CardContent>
-            </Card>
+                    </div>
+                ) : (
+                    <Card>
+                        <CardContent className="p-8 text-center text-muted-foreground">
+                            <p>You are not assigned as an instructor to any courses.</p>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
+};
+
+export default function LmsPage() {
+    const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+    const isLoading = isUserLoading || isProfileLoading;
+    const userRole = userProfile?.userType;
+
+    const renderContent = () => {
+        if (isLoading) {
+            return (
+                <div className="space-y-8">
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
+                    <div className="grid gap-6 md:grid-cols-2"><Skeleton className="h-48" /><Skeleton className="h-48" /></div>
+                </div>
+            );
+        }
+
+        if (!user) {
+            return (
+                <Card>
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                        <p>Please <Link href="/login" className="text-primary underline">log in</Link> to access the LMS Portal.</p>
+                    </CardContent>
+                </Card>
+            );
+        }
+        
+        if (userRole === 'faculty' || userRole === 'admin') {
+            return <FacultyDashboard />;
+        }
+        
+        return <StudentDashboard />;
+    }
+
+    return (
+        <div className="space-y-8">
+            <div className="flex items-center justify-between space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight">LMS Portal</h1>
+            </div>
+            {renderContent()}
+        </div>
+    );
 }
+
     

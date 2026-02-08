@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, ClipboardCheck, GraduationCap, Download, AlertTriangle, PlusCircle } from 'lucide-react';
+import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle } from 'lucide-react';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +28,7 @@ interface Assignment {
   id: string;
   title: string;
   dueDate: string;
+  details: string;
 }
 
 interface UserGrade {
@@ -126,39 +127,37 @@ export default function CourseDetailPage() {
                     <CardTitle>Assignments</CardTitle>
                 </CardHeader>
                 <CardContent>
-                      {isLoadingAssignments ? <Skeleton className="h-24" /> : assignments && assignments.length > 0 ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Title</TableHead>
-                                    <TableHead>Due Date</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {assignments.map((assignment) => {
-                                  const grade = getGradeForAssignment(assignment.id);
-                                  return (
-                                    <TableRow key={assignment.id}>
-                                        <TableCell className="font-medium">{assignment.title}</TableCell>
-                                        <TableCell>{format(new Date(assignment.dueDate), 'MMM dd, yyyy')}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={grade ? 'secondary' : 'outline'}>
-                                                {grade ? 'Graded' : 'Pending'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon">
-                                                <Download className="size-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                  )
-                                })}
-                            </TableBody>
-                        </Table>
-                      ) : <p className="text-muted-foreground">No assignments posted yet.</p>}
+                      {isLoadingAssignments ? <Skeleton className="h-48" /> : assignments && assignments.length > 0 ? (
+                        <div className="space-y-4">
+                            {assignments.map((assignment) => {
+                              const grade = getGradeForAssignment(assignment.id);
+                              return (
+                                <Card key={assignment.id} className="bg-muted/50">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="text-lg">{assignment.title}</CardTitle>
+                                        <CardDescription>Due: {format(new Date(assignment.dueDate), 'PPP')}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Accordion type="single" collapsible>
+                                            <AccordionItem value="details" className="border-b-0">
+                                                <AccordionTrigger>View Details</AccordionTrigger>
+                                                <AccordionContent className="whitespace-pre-wrap text-muted-foreground">
+                                                    {assignment.details}
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        </Accordion>
+                                    </CardContent>
+                                    <CardFooter className="flex justify-between">
+                                         <Badge variant={grade ? 'secondary' : 'outline'}>
+                                            {grade ? 'Graded' : 'Pending Submission'}
+                                        </Badge>
+                                        <Button variant="secondary" size="sm">Submit</Button>
+                                    </CardFooter>
+                                </Card>
+                              )
+                            })}
+                        </div>
+                      ) : <p className="text-muted-foreground text-center py-4">No assignments posted yet.</p>}
                 </CardContent>
             </Card>
         </div>
@@ -260,3 +259,5 @@ export default function CourseDetailPage() {
         </div>
     );
 }
+
+    

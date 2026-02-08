@@ -24,15 +24,18 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const assignmentSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long'),
   dueDate: z.date({ required_error: 'A due date is required.' }),
+  details: z.string().min(10, 'Details must be at least 10 characters long.'),
 });
 
 type AssignmentFormValues = z.infer<typeof assignmentSchema>;
@@ -45,12 +48,14 @@ interface CreateAssignmentDialogProps {
 
 export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAssignmentDialogProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<AssignmentFormValues>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: {
       title: '',
+      details: '',
     },
   });
 
@@ -61,8 +66,13 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
     const assignmentsCollection = collection(firestore, 'classes', classId, 'assignments');
     addDocumentNonBlocking(assignmentsCollection, {
       ...data,
+      classId: classId,
       dueDate: data.dueDate.toISOString(),
     }).then(() => {
+        toast({
+            title: 'Assignment Created',
+            description: `${data.title} has been successfully created.`,
+        });
         form.reset();
         setIsSubmitting(false);
         setIsOpen(false);
@@ -89,6 +99,23 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
                     <FormLabel>Assignment Title</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., Midterm Essay" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="details"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Details</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Provide a detailed description, instructions, or links to resources."
+                        className="min-h-32"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,3 +169,5 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
     </Dialog>
   );
 }
+
+    
