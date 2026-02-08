@@ -1,0 +1,273 @@
+/**
+ * @file firestore.rules
+ * @description Firestore Security Rules for the IILM Connect application.
+ *
+ * @section Core Philosophy
+ * This ruleset enforces a strict, user-centric security model. Data is segregated into two main categories:
+ * 1. Private User Data: Information stored under the `/users/{userId}` path is strictly owned by and accessible only to that user.
+ * 2. Shared/Public Content: Top-level collections like `/posts`, `/comments`, and `/classes` are generally readable by any authenticated user but can only be modified by their designated owner (e.g., author, teacher).
+ *
+ * @section Data Structure
+ * The data is organized into a combination of user-nested subcollections for private data (e.g., profiles, notifications) and top-level collections for shared application data. This structure optimizes for common query patterns and simplifies security logic.
+ *
+ * @section Key Security Decisions
+ * - Default Deny: All paths are closed by default. Access is granted on a per-collection basis.
+ * - Authentication Required: No data is accessible to unauthenticated users. All rules require a user to be signed in.
+ * - No User Listing: The top-level `/users` collection cannot be listed, preventing enumeration of all application users.
+ * - Admin-Managed Content: Collections without a clear ownership model in the schema (e.g., `/tags`, `/mess_meals`) are configured as read-only for general users. Writes to these collections would require an admin role, which is not defined in the current model.
+ *
+ * @section Denormalization for Authorization
+ * To ensure fast and simple authorization, ownership and role data are denormalized directly onto the documents being secured. For example, `Post` documents contain an `authorId` and `Class` documents contain a `teacherId`. This avoids slow, costly, and sometimes impossible cross-document `get()` calls in rules.
+ *
+ * @section Structural Segregation
+ * Private user data (profiles, notifications) is stored in subcollections under `/users/{userId}`, which is inherently more secure for list operations than mixing private and public data in a single top-level collection.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     * This is the primary function for enforcing document ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if a document currently exists in Firestore.
+     * Essential for secure update and delete operations.
+     */
+    function isExistingDoc() {
+      return resource != null;
+    }
+
+    /**
+     * @description A composite check for update/delete operations, ensuring the
+     * user is the owner AND the document already exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDoc();
+    }
+
+    /**
+     * @description Checks if the requesting user is the teacher of a given class.
+     * Requires a cross-document read to the parent Class document.
+     */
+    function isTeacherOfClass(classId) {
+      return isSignedIn() && get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // User Data (/users)
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages core user account data.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user can create their own user document.
+     * @deny (create) A user (`user_abc`) cannot create a document for another user (`user_xyz`).
+     * @principle Enforces Self-Creation and Ownership. A user's root document is controlled only by them.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Disallow listing all users for security.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Manages a user's student profile.
+       * @path /users/{userId}/student_profile/{profileId}
+       * @allow (create) A user (`user_abc`) can create a student profile under their own user path.
+       * @deny (read) A user (`user_xyz`) cannot read the student profile of another user (`user_abc`).
+       * @principle Restricts access to a user's own data tree.
+       */
+      match /student_profile/{profileId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages a user's faculty profile.
+       * @path /users/{userId}/faculty_profile/{profileId}
+       * @allow (update) A faculty member can update their own profile.
+       * @deny (create) Another user cannot create a faculty profile for someone else.
+       * @principle Restricts access to a user's own data tree.
+       */
+      match /faculty_profile/{profileId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages a user's alumni profile.
+       * @path /users/{userId}/alumni_profile/{profileId}
+       * @allow (read) An alumni can read their own profile.
+       * @deny (delete) A user cannot delete another user's alumni profile.
+       * @principle Restricts access to a user's own data tree.
+       */
+      match /alumni_profile/{profileId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages a user's notifications.
+       * @path /users/{userId}/notifications/{notificationId}
+       * @allow (read) A user can read their own notifications.
+       * @deny (read) A user cannot read notifications intended for another user.
+       * @principle Restricts access to a user's own data tree.
+       */
+      match /notifications/{notificationId} {
+        allow get, list: if isOwner(userId);
+        allow create: if false; // Notifications are likely created by a backend service, not the client.
+        allow update: if isExistingOwner(userId); // User can mark as read.
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // CollabNest Portal (/posts)
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages public posts.
+     * @path /posts/{postId}
+     * @allow (read) Any signed-in user can read any post.
+     * @deny (update) A user (`user_abc`) cannot update a post written by another user (`user_xyz`).
+     * @principle Implements Public Read with Owner-Only Writes, based on the denormalized `authorId` field.
+     */
+    match /posts/{postId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isExistingOwner(resource.data.authorId) && request.resource.data.authorId == resource.data.authorId;
+      allow delete: if isExistingOwner(resource.data.authorId);
+
+      /**
+       * @description Manages comments on a post.
+       * @path /posts/{postId}/comments/{commentId}
+       * @allow (create) Any signed-in user can comment on a post.
+       * @deny (delete) A user cannot delete another user's comment.
+       * @principle Implements Public Read with Owner-Only Writes, based on the denormalized `authorId` field.
+       */
+      match /comments/{commentId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isExistingOwner(resource.data.authorId) && request.resource.data.authorId == resource.data.authorId;
+        allow delete: if isExistingOwner(resource.data.authorId);
+      }
+    }
+
+    /**
+     * @description Manages tags for posts.
+     * @path /tags/{tagId}
+     * @allow (read) Any signed-in user can read the list of tags.
+     * @deny (create, update, delete) No user can modify tags directly.
+     * @principle Treats this as read-only data for clients. Modification should be handled by an admin role or backend process.
+     */
+    match /tags/{tagId} {
+      allow get, list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // LMS Portal (/classes)
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages class/course information.
+     * @path /classes/{classId}
+     * @allow (read) Any signed-in user can view class information.
+     * @deny (update) Only the teacher (`teacherId`) assigned to the class can modify it.
+     * @principle Implements Public Read with Owner-Only Writes, based on the denormalized `teacherId` field.
+     */
+    match /classes/{classId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isExistingOwner(resource.data.teacherId) && request.resource.data.teacherId == resource.data.teacherId;
+      allow delete: if isExistingOwner(resource.data.teacherId);
+
+      /**
+       * @description Manages student attendance for a class.
+       * @path /classes/{classId}/attendances/{attendanceId}
+       * @allow (read) The class teacher OR the specific student (`studentId`) can read an attendance record.
+       * @deny (list) A student cannot list all attendance records for a class.
+       * @principle Enforces a shared access model. The teacher has full control, while the student has read-only access to their own data.
+       */
+      match /attendances/{attendanceId} {
+        allow get: if isTeacherOfClass(classId) || (isExistingDoc() && isOwner(resource.data.studentId));
+        allow list: if isTeacherOfClass(classId);
+        allow create: if isTeacherOfClass(classId);
+        allow update: if isTeacherOfClass(classId) && isExistingDoc();
+        allow delete: if isTeacherOfClass(classId) && isExistingDoc();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Mess Portal (/mess_meals)
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages available mess meals.
+     * @path /mess_meals/{mealId}
+     * @allow (read) Any signed-in user can read meal information.
+     * @deny (create, update, delete) No user can modify meals directly.
+     * @principle Treats this as read-only data for clients. Modification should be handled by a mess staff role or backend process.
+     */
+    match /mess_meals/{mealId} {
+      allow get, list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+
+      /**
+       * @description Manages a student's meal selection for a given meal.
+       * @path /mess_meals/{mealId}/student_selections/{selectionId}
+       * @allow (create) A student (`user_abc`) can create their own meal selection.
+       * @deny (get) A student (`user_abc`) cannot get the meal selection of another student (`user_xyz`).
+       * @principle Enforces document ownership. Students control their own selections.
+       */
+      match /student_selections/{selectionId} {
+        allow get: if isExistingDoc() && isOwner(resource.data.studentId);
+        allow list: if isSignedIn(); // Allow listing; client must query for their own `studentId`.
+        allow create: if isOwner(request.resource.data.studentId);
+        allow update: if isExistingOwner(resource.data.studentId) && request.resource.data.studentId == resource.data.studentId;
+        allow delete: if isExistingOwner(resource.data.studentId);
+      }
+
+      /**
+       * @description Manages consumption data entered by mess staff.
+       * @path /mess_meals/{mealId}/staff_consumption_data/{consumptionDataId}
+       * @allow (read) Any signed-in user can read consumption data.
+       * @deny (create, update, delete) No user can modify consumption data directly.
+       * @principle Treats this as read-only data for clients. Modification should be handled by a mess staff role or backend process.
+       */
+      match /staff_consumption_data/{consumptionDataId} {
+        allow get, list: if isSignedIn();
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}
