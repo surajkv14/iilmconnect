@@ -49,10 +49,11 @@ export default function CollabNestPage() {
   const [whoToFollow, setWhoToFollow] = useState(initialWhoToFollow);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   
-  // Memoize the Firestore query to prevent re-running on every render
+  // Memoize the Firestore query to prevent re-running on every render.
+  // Only query for posts if the user is logged in, to comply with security rules.
   const postsQuery = useMemoFirebase(() => 
-    firestore ? query(collection(firestore, 'posts'), orderBy('timestamp', 'desc')) : null
-  , [firestore]);
+    (firestore && user) ? query(collection(firestore, 'posts'), orderBy('timestamp', 'desc')) : null
+  , [firestore, user]);
 
   const { data: posts, isLoading: isLoadingPosts } = useCollection<Post>(postsQuery);
 
@@ -105,8 +106,8 @@ export default function CollabNestPage() {
     const [newComment, setNewComment] = useState('');
 
     const commentsQuery = useMemoFirebase(
-      () => firestore ? query(collection(firestore, 'posts', postId, 'comments'), orderBy('timestamp', 'asc')) : null,
-      [firestore, postId]
+      () => (firestore && user) ? query(collection(firestore, 'posts', postId, 'comments'), orderBy('timestamp', 'asc')) : null,
+      [firestore, postId, user]
     );
     const { data: comments, isLoading: isLoadingComments } = useCollection<Comment>(commentsQuery);
 
@@ -172,7 +173,11 @@ export default function CollabNestPage() {
               </div>
             ))
           ) : (
-            !isLoadingComments && <p className="text-sm text-muted-foreground text-center">No comments yet.</p>
+            !isLoadingComments && (
+              <p className="text-sm text-muted-foreground text-center">
+                {user ? 'No comments yet.' : 'Please log in to see comments.'}
+              </p>
+            )
           )}
         </div>
       </div>
@@ -233,7 +238,7 @@ export default function CollabNestPage() {
           </Card>
 
           {/* Posts Feed */}
-          {isLoadingPosts && (
+          {(isLoadingPosts || isUserLoading) && (
              <div className="space-y-6">
                 <Card><CardHeader><Skeleton className="h-24" /></CardHeader></Card>
                 <Card><CardHeader><Skeleton className="h-32" /></CardHeader></Card>
@@ -296,10 +301,14 @@ export default function CollabNestPage() {
               </Card>
             )
           })}
-           {!isLoadingPosts && (!posts || posts.length === 0) && (
+           {!isLoadingPosts && !isUserLoading && (!posts || posts.length === 0) && (
               <Card>
                 <CardContent className="p-8 text-center text-muted-foreground">
-                  <p>No posts yet. Be the first to share something!</p>
+                  {user ? (
+                    <p>No posts yet. Be the first to share something!</p>
+                  ) : (
+                    <p>Please <Link href="/login" className="text-primary underline">log in</Link> to see the feed.</p>
+                  )}
                 </CardContent>
               </Card>
            )}
