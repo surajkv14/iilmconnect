@@ -251,11 +251,11 @@ service cloud.firestore {
     /**
      * @description Manages student meal selections.
      * @path /student_meal_selections/{selectionId}
-     * @principle Enforces strict data ownership for privacy.
+     * @principle Enforces strict data ownership for privacy. Admins are allowed to list for administrative purposes.
      */
     match /student_meal_selections/{selectionId} {
-      allow get: if isOwner(resource.data.studentId);
-      allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
+      allow get: if isOwner(resource.data.studentId) || isAdmin();
+      allow list: if (isSignedIn() && request.query.where[0][2] == request.auth.uid) || isAdmin();
       allow create: if isOwner(request.resource.data.studentId);
       allow update: if isExistingOwner(resource.data.studentId);
       allow delete: if isExistingOwner(resource.data.studentId);
