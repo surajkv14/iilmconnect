@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,13 +16,13 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 
-const user = {
+const currentUser = {
   name: 'Jane Doe',
   title: 'Computer Science Student',
   avatar: 'https://picsum.photos/seed/user-jane/80/80',
 };
 
-const posts = [
+const initialPosts = [
   {
     id: 1,
     author: {
@@ -33,6 +34,7 @@ const posts = [
     likes: 128,
     comments: 12,
     shares: 23,
+    liked: false,
   },
   {
     id: 2,
@@ -47,16 +49,58 @@ const posts = [
     likes: 350,
     comments: 45,
     shares: 112,
+    liked: true,
   },
 ];
 
-const whoToFollow = [
-    { name: 'Dr. Tim Berners-Lee', title: 'Web Development Professor', avatar: 'https://picsum.photos/seed/berners-lee/40/40' },
-    { name: 'Alumni Association', title: 'Official Alumni Network', avatar: 'https://picsum.photos/seed/alumni/40/40' },
+const initialWhoToFollow = [
+    { name: 'Dr. Tim Berners-Lee', title: 'Web Development Professor', avatar: 'https://picsum.photos/seed/berners-lee/40/40', isFollowing: false },
+    { name: 'Alumni Association', title: 'Official Alumni Network', avatar: 'https://picsum.photos/seed/alumni/40/40', isFollowing: false },
 ];
 
 
 export default function CollabNestPage() {
+  const [posts, setPosts] = useState(initialPosts);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [whoToFollow, setWhoToFollow] = useState(initialWhoToFollow);
+
+  const handlePost = () => {
+    if (!newPostContent.trim()) return;
+
+    const newPost = {
+        id: posts.length + 1,
+        author: {
+            name: currentUser.name,
+            avatar: currentUser.avatar,
+        },
+        time: 'Just now',
+        content: newPostContent,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        liked: false,
+    };
+
+    setPosts([newPost, ...posts]);
+    setNewPostContent('');
+  };
+
+  const handleLike = (postId: number) => {
+    setPosts(posts.map(post => 
+        post.id === postId 
+        ? { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 } 
+        : post
+    ));
+  };
+  
+  const handleFollow = (personName: string) => {
+    setWhoToFollow(whoToFollow.map(person => 
+        person.name === personName
+        ? { ...person, isFollowing: !person.isFollowing }
+        : person
+    ));
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between space-y-2">
@@ -69,11 +113,17 @@ export default function CollabNestPage() {
           <Card>
             <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-4">
                 <Avatar>
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
+                  <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="w-full">
-                   <Textarea placeholder={`What's on your mind, ${user.name.split(' ')[0]}?`} className="w-full bg-muted border-0 focus-visible:ring-1 ring-primary p-4" rows={2}/>
+                   <Textarea 
+                      placeholder={`What's on your mind, ${currentUser.name.split(' ')[0]}?`} 
+                      className="w-full bg-muted border-0 focus-visible:ring-1 ring-primary p-4" 
+                      rows={2}
+                      value={newPostContent}
+                      onChange={(e) => setNewPostContent(e.target.value)}
+                    />
                 </div>
             </CardHeader>
             <CardFooter className="flex justify-between items-center">
@@ -85,7 +135,7 @@ export default function CollabNestPage() {
                         <Video className="mr-2" /> Video
                     </Button>
                 </div>
-                <Button>
+                <Button onClick={handlePost} disabled={!newPostContent.trim()}>
                     <Send className="mr-2" /> Post
                 </Button>
             </CardFooter>
@@ -127,8 +177,8 @@ export default function CollabNestPage() {
                 )}
               </CardContent>
               <CardFooter className="flex justify-between items-center border-t pt-4">
-                <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground hover:text-red-500">
-                    <Heart className="size-5" /> <span>{post.likes}</span>
+                <Button variant="ghost" size="sm" className={`flex items-center gap-2 ${post.liked ? 'text-destructive' : 'text-muted-foreground'} hover:text-destructive`} onClick={() => handleLike(post.id)}>
+                    <Heart className="size-5" fill={post.liked ? 'hsl(var(--destructive))' : 'none'} /> <span>{post.likes}</span>
                 </Button>
                  <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
                     <MessageSquare className="size-5" /> <span>{post.comments}</span>
@@ -148,11 +198,11 @@ export default function CollabNestPage() {
                 </CardHeader>
                 <CardContent className="flex flex-col items-center text-center">
                     <Avatar className="size-20 mb-4">
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
+                        <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <p className="font-bold text-lg">{user.name}</p>
-                    <p className="text-sm text-muted-foreground">{user.title}</p>
+                    <p className="font-bold text-lg">{currentUser.name}</p>
+                    <p className="text-sm text-muted-foreground">{currentUser.title}</p>
                     <Button variant="outline" className="mt-4 w-full">View Profile</Button>
                 </CardContent>
             </Card>
@@ -174,7 +224,13 @@ export default function CollabNestPage() {
                                         <p className="text-xs text-muted-foreground">{person.title}</p>
                                     </div>
                                 </div>
-                                <Button variant="outline" size="sm">Follow</Button>
+                                <Button 
+                                  variant={person.isFollowing ? 'default' : 'outline'} 
+                                  size="sm"
+                                  onClick={() => handleFollow(person.name)}
+                                >
+                                    {person.isFollowing ? 'Following' : 'Follow'}
+                                </Button>
                            </li>
                         ))}
                     </ul>
