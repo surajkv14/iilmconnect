@@ -241,21 +241,6 @@ service cloud.firestore {
       allow delete: if false;
 
       /**
-       * @description Manages a student's meal selection for a given meal.
-       * @path /mess_meals/{mealId}/student_selections/{selectionId}
-       * @allow (create) A student (`user_abc`) can create their own meal selection.
-       * @deny (get) A student (`user_abc`) cannot get the meal selection of another student (`user_xyz`).
-       * @principle Enforces document ownership. Students control their own selections.
-       */
-      match /student_selections/{selectionId} {
-        allow get: if isExistingDoc() && isOwner(resource.data.studentId);
-        allow list: if isSignedIn(); // Allow listing; client must query for their own `studentId`.
-        allow create: if isOwner(request.resource.data.studentId);
-        allow update: if isExistingOwner(resource.data.studentId) && request.resource.data.studentId == resource.data.studentId;
-        allow delete: if isExistingOwner(resource.data.studentId);
-      }
-
-      /**
        * @description Manages consumption data entered by mess staff.
        * @path /mess_meals/{mealId}/staff_consumption_data/{consumptionDataId}
        * @allow (read) Any signed-in user can read consumption data.
@@ -269,7 +254,21 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+
+    /**
+     * @description Manages student meal selections.
+     * @path /student_meal_selections/{selectionId}
+     * @allow (list) A user can only list their own meal selections.
+     * @deny (create) A user cannot create a selection for another user.
+     * @principle Enforces strict data ownership for privacy.
+     */
+    match /student_meal_selections/{selectionId} {
+      allow get: if isOwner(resource.data.studentId);
+      allow list: if isSignedIn() && request.query.where.studentId == request.auth.uid;
+      allow create: if isOwner(request.resource.data.studentId);
+      allow update: if isExistingOwner(resource.data.studentId);
+      allow delete: if isExistingOwner(resource.data.studentId);
+    }
   }
 }
-
     
