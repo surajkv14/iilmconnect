@@ -2,8 +2,9 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseCard, type Course } from '@/components/lms/course-card';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { Badge } from '@/components/ui/badge';
+import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 
 const courses: Course[] = [
   { title: 'Introduction to AI', code: 'CS-401', instructor: 'Dr. Alan Turing', progress: 75 },
@@ -30,6 +31,21 @@ const announcements = [
     { course: 'University', title: 'Mid-term break announced', date: 'Feb 10, 2026' },
     { course: 'Web Development', title: 'Guest lecture on React Hooks', date: 'Feb 09, 2026' },
 ]
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <p className="font-bold">{label}</p>
+          <p className="text-sm text-muted-foreground">
+            Score: {payload[0].value} / {payload[0].payload.max}
+          </p>
+        </div>
+      );
+    }
+  
+    return null;
+};
 
 export default function LmsPage() {
   return (
@@ -64,11 +80,7 @@ export default function LmsPage() {
                             <YAxis fontSize={12} tickLine={false} axisLine={false} />
                             <Tooltip
                                 cursor={{fill: 'hsl(var(--muted))'}}
-                                contentStyle={{
-                                    backgroundColor: 'hsl(var(--background))',
-                                    borderColor: 'hsl(var(--border))',
-                                    borderRadius: 'var(--radius)',
-                                }}
+                                content={<CustomTooltip />}
                             />
                             <Bar dataKey="score" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                         </BarChart>
