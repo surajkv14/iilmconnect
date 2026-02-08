@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export type Course = {
   title: string;
@@ -27,7 +28,9 @@ export function CourseCard({ course }: { course: Course }) {
           </div>
           <Progress value={course.progress} aria-label={`${course.progress}% course progress`} />
         </div>
-        <Button variant="outline" size="sm" className="mt-2 w-full">View Course</Button>
+        <Button asChild variant="outline" size="sm" className="mt-2 w-full">
+          <Link href={`/lms/${course.code}`}>View Course</Link>
+        </Button>
       </CardFooter>
     </Card>
   );
