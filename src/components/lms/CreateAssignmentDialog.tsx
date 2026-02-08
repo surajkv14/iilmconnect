@@ -127,7 +127,7 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
-                    <Popover>
+                    <Popover modal={false}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -142,7 +142,7 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
