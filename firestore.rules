@@ -152,13 +152,13 @@ service cloud.firestore {
      * @description Manages public posts.
      * @path /posts/{postId}
      * @allow (read) Any signed-in user can read any post.
-     * @deny (update) A user (`user_abc`) cannot update a post written by another user (`user_xyz`).
-     * @principle Implements Public Read with Owner-Only Writes, based on the denormalized `authorId` field.
+     * @deny (update) A user (`user_abc`) cannot update a post written by another user (`user_xyz`), unless they are liking it.
+     * @principle Implements Public Read with Owner-Only Writes for content, and allows any user to modify the 'likedBy' field.
      */
     match /posts/{postId} {
       allow get, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.authorId) && request.resource.data.authorId == resource.data.authorId;
+      allow update: if isExistingOwner(resource.data.authorId) || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy']));
       allow delete: if isExistingOwner(resource.data.authorId);
 
       /**
@@ -271,3 +271,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

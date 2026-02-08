@@ -141,13 +141,17 @@
       "type": "object",
       "description": "Represents a post in the CollabNest portal.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Post entity."
-        },
         "authorId": {
           "type": "string",
           "description": "Reference to User. (Relationship: User 1:N Post)"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Denormalized author's display name."
+        },
+        "authorAvatar": {
+          "type": "string",
+          "description": "Denormalized author's avatar URL."
         },
         "content": {
           "type": "string",
@@ -158,19 +162,23 @@
           "description": "Timestamp of the post.",
           "format": "date-time"
         },
-        "tagIds": {
+        "likedBy": {
           "type": "array",
-          "description": "References to Tags. (Relationship: Tag N:N Post)",
+          "description": "Array of user IDs who liked the post.",
           "items": {
             "type": "string"
           }
+        },
+        "image": {
+          "type": "string",
+          "description": "URL of an image attached to the post."
         }
       },
       "required": [
-        "id",
         "authorId",
-        "content",
-        "timestamp"
+        "authorName",
+        "authorAvatar",
+        "content"
       ]
     },
     "Comment": {
@@ -664,3 +672,5 @@
     "reasoning": "This Firestore structure is designed to support the IILM Connect application, encompassing LMS, CollabNest, and Mess portals. It prioritizes Authorization Independence and QAPs. User data and profiles are stored under the `/users/{userId}` path. Profile information (`StudentProfile`, `FacultyProfile`, `AlumniProfile`) will be stored as separate documents, each with a `userId` field referencing the corresponding user document. This enables easy retrieval of profile information based on user ID. The CollabNest portal's posts and comments are structured under `/posts/{postId}` and `/posts/{postId}/comments/{commentId}`, respectively. Posts include an `authorId` field to link back to the user who created the post. Tags are stored in a flat `/tags` collection, and posts contain an array of `tagIds` to establish a many-to-many relationship. The LMS portal's attendance records and class information are stored under `/classes/{classId}/attendances/{attendanceId}` and `/classes/{classId}`, respectively. Classes have a `teacherId` to link to the faculty member teaching the class, with attendance records linked to both the student and the class. The mess portal data, including meals, student selections, and staff consumption data, are stored under `/mess_meals/{mealId}`, `/mess_meals/{mealId}/student_selections/{selectionId}`, and `/mess_meals/{mealId}/staff_consumption_data/{consumptionDataId}`, respectively.  This structure provides granular access control and avoids the need for complex `get()` calls in security rules. For Authorization Independence, all subcollections include the necessary authorization context (e.g., `authorId` in `posts`, `teacherId` in `classes`). QAPs are supported through structural segregation (separate collections for different data types) and path-based ownership (e.g., `/users/{userId}/notifications/{notificationId}`)."
   }
 }
+
+    
