@@ -168,13 +168,15 @@ export default function CollabNestPage() {
           {comments && comments.length > 0 ? (
             comments.map((comment) => (
               <div key={comment.id} className="flex items-start gap-3">
-                <Avatar className="size-9">
-                  <AvatarImage src={comment.authorAvatar} alt={comment.authorName} />
-                  <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
-                </Avatar>
+                 <Link href={`/profile/${comment.authorId}`}>
+                    <Avatar className="size-9">
+                        <AvatarImage src={comment.authorAvatar} alt={comment.authorName} />
+                        <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                </Link>
                 <div>
                   <div className="bg-muted rounded-lg px-4 py-2">
-                    <p className="font-semibold text-sm">{comment.authorName}</p>
+                    <Link href={`/profile/${comment.authorId}`} className="font-semibold text-sm hover:underline">{comment.authorName}</Link>
                     <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -207,10 +209,12 @@ export default function CollabNestPage() {
           <Card>
             <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-4">
               {isUserLoading ? <Skeleton className="size-10 rounded-full" /> : (
-                <Avatar>
-                  <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} alt={user?.displayName || 'user'} />
-                  <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
+                <Link href={`/profile/${user?.uid}`}>
+                    <Avatar>
+                        <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} alt={user?.displayName || 'user'} />
+                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                </Link>
               )}
                 <div className="w-full">
                   {!user && !isUserLoading ? (
@@ -296,12 +300,14 @@ export default function CollabNestPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                          <Avatar>
-                              <AvatarImage src={post.authorAvatar} alt={post.authorName} />
-                              <AvatarFallback>{post.authorName.charAt(0)}</AvatarFallback>
-                          </Avatar>
+                          <Link href={`/profile/${post.authorId}`}>
+                            <Avatar>
+                                <AvatarImage src={post.authorAvatar} alt={post.authorName} />
+                                <AvatarFallback>{post.authorName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                          </Link>
                           <div>
-                              <p className="font-semibold">{post.authorName}</p>
+                              <Link href={`/profile/${post.authorId}`} className="font-semibold hover:underline">{post.authorName}</Link>
                               <p className="text-xs text-muted-foreground">
                                 {post.timestamp ? formatDistanceToNowStrict(post.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
                               </p>
@@ -373,13 +379,17 @@ export default function CollabNestPage() {
                     </div>
                   ) : user ? (
                     <>
-                      <Avatar className="size-20 mb-4">
-                          <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/80/80`} alt={user.displayName || 'user'} />
-                          <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <Link href={`/profile/${user.uid}`}>
+                        <Avatar className="size-20 mb-4 mx-auto">
+                            <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/80/80`} alt={user.displayName || 'user'} />
+                            <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                      </Link>
                       <p className="font-bold text-lg">{user.displayName || user.email}</p>
                       <p className="text-sm text-muted-foreground">Computer Science Student</p>
-                      <Button variant="outline" className="mt-4 w-full">View Profile</Button>
+                      <Button asChild variant="outline" className="mt-4 w-full">
+                        <Link href={`/profile/${user.uid}`}>View Profile</Link>
+                      </Button>
                     </>
                   ) : (
                     <div className="text-center p-4">
@@ -425,5 +435,3 @@ export default function CollabNestPage() {
     </div>
   );
 }
-
-    

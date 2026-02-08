@@ -9,6 +9,7 @@ import {
   ChevronDown,
   LogOut,
   LogIn,
+  User as UserIcon,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -151,7 +152,12 @@ export function AppSidebar() {
             <DropdownMenuContent className="w-56 mb-2" side="top" align="start">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/profile/${user.uid}`}>
+                    <UserIcon className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>

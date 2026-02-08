@@ -1,9 +1,73 @@
+'use client';
+
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight, BookCopy, Users, Utensils, CalendarCheck } from 'lucide-react';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+interface UserDoc {
+  id: string;
+  userType: 'student' | 'faculty' | 'alumni' | 'admin';
+}
+
+interface ClassDoc {
+  id: string;
+}
 
 export default function Home() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserDoc>(userProfileRef);
+
+  const isAdmin = userProfile?.userType === 'admin';
+
+  const usersCollectionRef = useMemoFirebase(() => (isAdmin ? collection(firestore, 'users') : null), [isAdmin, firestore]);
+  const { data: users, isLoading: areUsersLoading } = useCollection<UserDoc>(usersCollectionRef);
+
+  const classesCollectionRef = useMemoFirebase(() => (isAdmin ? collection(firestore, 'classes') : null), [isAdmin, firestore]);
+  const { data: classes, isLoading: areClassesLoading } = useCollection<ClassDoc>(classesCollectionRef);
+  
+  const [studentCount, setStudentCount] = useState<number | null>(null);
+  const [facultyCount, setFacultyCount] = useState<number | null>(null);
+  const [courseCount, setCourseCount] = useState<number | null>(null);
+  
+  useEffect(() => {
+    if (users) {
+      setStudentCount(users.filter(u => u.userType === 'student').length);
+      setFacultyCount(users.filter(u => u.userType === 'faculty').length);
+    }
+  }, [users]);
+
+  useEffect(() => {
+    if (classes) {
+      setCourseCount(classes.length);
+    }
+  }, [classes]);
+  
+  const isLoading = isUserLoading || isProfileLoading || (isAdmin && (areUsersLoading || areClassesLoading));
+
+  const renderStatCard = (title: string, value: number | null, staticValue: string, changeText: string, icon: React.ReactNode) => {
+    const displayValue = isAdmin ? (value !== null ? value.toString() : <Skeleton className="h-8 w-20" />) : staticValue;
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          {icon}
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{isLoading && isAdmin ? <Skeleton className="h-8 w-20" /> : displayValue}</div>
+          <p className="text-xs text-muted-foreground">{changeText}</p>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between space-y-2">
@@ -14,36 +78,9 @@ export default function Home() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-muted-foreground">+5.2% from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Courses</CardTitle>
-             <BookCopy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">56</div>
-            <p className="text-xs text-muted-foreground">+2 since last semester</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Faculty Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">128</div>
-            <p className="text-xs text-muted-foreground">+10 since last year</p>
-          </CardContent>
-        </Card>
+        {renderStatCard("Total Students", studentCount, "1,234", "+5.2% from last month", <Users className="h-4 w-4 text-muted-foreground" />)}
+        {renderStatCard("Active Courses", courseCount, "56", "+2 since last semester", <BookCopy className="h-4 w-4 text-muted-foreground" />)}
+        {renderStatCard("Faculty Members", facultyCount, "128", "+10 since last year", <Users className="h-4 w-4 text-muted-foreground" />)}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
