@@ -4,9 +4,12 @@ import {
   signInAnonymously,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import { errorEmitter } from './error-emitter';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from './non-blocking-updates';
 
 /** Initiate anonymous sign-in (non-blocking). */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
@@ -17,14 +20,65 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Initiate email/password sign-up (non-blocking). */
 export function initiateEmailSignUp(authInstance: Auth, email: string, password: string): void {
-  createUserWithEmailAndPassword(authInstance, email, password).catch((error: FirebaseError) => {
+  createUserWithEmailAndPassword(authInstance, email, password)
+  .then(async (userCredential) => {
+      const user = userCredential.user;
+      const firestore = getFirestore(authInstance.app);
+      const userDocRef = doc(firestore, 'users', user.uid);
+
+      const userType = email === 'admin@iilm.edu' ? 'admin' : 'student';
+      const displayName = email.split('@')[0];
+      const photoURL = `https://picsum.photos/seed/${user.uid}/96/96`;
+
+      // Also update the user's profile in Firebase Auth
+      await updateProfile(user, { 
+        displayName: displayName,
+        photoURL: photoURL,
+      });
+      
+      // Non-blocking write to create the user document
+      setDocumentNonBlocking(userDocRef, {
+        id: user.uid,
+        email: user.email,
+        userType: userType,
+        displayName: displayName,
+        photoURL: photoURL
+      }, {});
+    })
+    .catch((error: FirebaseError) => {
     errorEmitter.emit('auth-error', error);
   });
 }
 
 /** Initiate email/password sign-in (non-blocking). */
 export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
-  signInWithEmailAndPassword(authInstance, email, password).catch((error: FirebaseError) => {
+  signInWithEmailAndPassword(authInstance, email, password)
+  .then(async (userCredential) => {
+      const user = userCredential.user;
+      const firestore = getFirestore(authInstance.app);
+      const userDocRef = doc(firestore, 'users', user.uid);
+      
+      const docSnap = await getDoc(userDocRef);
+      if (!docSnap.exists()) {
+        // Doc doesn't exist, create it. This handles users created before this fix.
+        const userType = email === 'admin@iilm.edu' ? 'admin' : 'student';
+        const displayName = user.displayName || email.split('@')[0];
+        const photoURL = user.photoURL || `https://picsum.photos/seed/${user.uid}/96/96`;
+        
+        if (!user.displayName || !user.photoURL) {
+            await updateProfile(user, { displayName, photoURL });
+        }
+
+        setDocumentNonBlocking(userDocRef, {
+            id: user.uid,
+            email: user.email,
+            userType: userType,
+            displayName: displayName,
+            photoURL: photoURL
+        }, {});
+      }
+    })
+  .catch((error: FirebaseError) => {
     errorEmitter.emit('auth-error', error);
   });
 }

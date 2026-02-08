@@ -23,6 +23,14 @@
           "type": "string",
           "description": "User's last name."
         },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture."
+        },
         "userType": {
           "type": "string",
           "description": "Type of user (student, faculty, alumni, admin)."
@@ -31,8 +39,6 @@
       "required": [
         "id",
         "email",
-        "firstName",
-        "lastName",
         "userType"
       ]
     },
