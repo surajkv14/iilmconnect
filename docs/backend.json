@@ -328,12 +328,30 @@
       "type": "object",
       "description": "Represents an assignment for a class.",
       "properties": {
-        "id": { "type": "string", "description": "Unique ID for the assignment." },
-        "classId": { "type": "string", "description": "Reference to the Class." },
-        "title": { "type": "string", "description": "Title of the assignment." },
-        "dueDate": { "type": "string", "format": "date-time", "description": "Due date for the assignment." }
+        "id": {
+          "type": "string",
+          "description": "Unique ID for the assignment."
+        },
+        "classId": {
+          "type": "string",
+          "description": "Reference to the Class."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the assignment."
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Due date for the assignment."
+        }
       },
-      "required": ["id", "classId", "title", "dueDate"]
+      "required": [
+        "id",
+        "classId",
+        "title",
+        "dueDate"
+      ]
     },
     "UserGrade": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -341,14 +359,38 @@
       "type": "object",
       "description": "Represents a student's grade for a specific assignment.",
       "properties": {
-        "id": { "type": "string", "description": "Unique ID for the grade entry." },
-        "userId": { "type": "string", "description": "Reference to the User (student)." },
-        "classId": { "type": "string", "description": "Reference to the Class." },
-        "assignmentId": { "type": "string", "description": "Reference to the Assignment." },
-        "score": { "type": "number", "description": "The student's score." },
-        "grade": { "type": "string", "description": "The letter grade, e.g., 'A+'." }
+        "id": {
+          "type": "string",
+          "description": "Unique ID for the grade entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User (student)."
+        },
+        "classId": {
+          "type": "string",
+          "description": "Reference to the Class."
+        },
+        "assignmentId": {
+          "type": "string",
+          "description": "Reference to the Assignment."
+        },
+        "score": {
+          "type": "number",
+          "description": "The student's score."
+        },
+        "grade": {
+          "type": "string",
+          "description": "The letter grade, e.g., 'A+'."
+        }
       },
-      "required": ["id", "userId", "classId", "assignmentId", "score"]
+      "required": [
+        "id",
+        "userId",
+        "classId",
+        "assignmentId",
+        "score"
+      ]
     },
     "MessMeal": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -555,11 +597,19 @@
         "path": "/users/{userId}/grades/{gradeId}",
         "definition": {
           "entityName": "UserGrade",
-          "schema": { "$ref": "#/backend/entities/UserGrade" },
+          "schema": {
+            "$ref": "#/backend/entities/UserGrade"
+          },
           "description": "Stores grades for a specific user.",
           "params": [
-            { "name": "userId", "description": "The unique ID for the user." },
-            { "name": "gradeId", "description": "The unique ID for the grade." }
+            {
+              "name": "userId",
+              "description": "The unique ID for the user."
+            },
+            {
+              "name": "gradeId",
+              "description": "The unique ID for the grade."
+            }
           ]
         }
       },
@@ -635,11 +685,19 @@
         "path": "/classes/{classId}/assignments/{assignmentId}",
         "definition": {
           "entityName": "Assignment",
-          "schema": { "$ref": "#/backend/entities/Assignment" },
+          "schema": {
+            "$ref": "#/backend/entities/Assignment"
+          },
           "description": "Stores assignments for a specific class.",
           "params": [
-            { "name": "classId", "description": "The unique ID for the class." },
-            { "name": "assignmentId", "description": "The unique ID for the assignment." }
+            {
+              "name": "classId",
+              "description": "The unique ID for the class."
+            },
+            {
+              "name": "assignmentId",
+              "description": "The unique ID for the assignment."
+            }
           ]
         }
       },

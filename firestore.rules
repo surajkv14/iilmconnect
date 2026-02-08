@@ -75,7 +75,8 @@ service cloud.firestore {
      * Requires a cross-document read to the parent Class document.
      */
     function isTeacherOfClass(classId) {
-      return isSignedIn() && get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid;
+      let classDoc = get(/databases/$(database)/documents/classes/$(classId));
+      return isSignedIn() && classDoc.data.teacherId == request.auth.uid;
     }
 
     // -------------------------------------------------------------------------
@@ -254,7 +255,7 @@ service cloud.firestore {
      */
     match /student_meal_selections/{selectionId} {
       allow get: if isOwner(resource.data.studentId);
-      allow list: if isSignedIn() && request.query.where.studentId == request.auth.uid;
+      allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
       allow create: if isOwner(request.resource.data.studentId);
       allow update: if isExistingOwner(resource.data.studentId);
       allow delete: if isExistingOwner(resource.data.studentId);
