@@ -1,17 +1,12 @@
-import { HeroSection } from '@/components/landing/hero-section';
-import { FeaturesSection } from '@/components/landing/features-section';
-import { SiteHeader } from '@/components/layout/site-header';
-import { SiteFooter } from '@/components/layout/site-footer';
-
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <SiteHeader />
-      <main className="flex-1">
-        <HeroSection />
-        <FeaturesSection />
-      </main>
-      <SiteFooter />
-    </div>
+    <main>
+      <div className="container mx-auto py-12 text-center">
+        <h1 className="text-4xl font-bold">Blank Page</h1>
+        <p className="mt-4 text-lg text-muted-foreground">
+          This is a blank page. You can start building your app from here.
+        </p>
+      </div>
+    </main>
   );
 }
