@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Heart, Image as ImageIcon, MessageSquare, MoreHorizontal, Repeat2, Send, Video } from 'lucide-react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
@@ -12,6 +13,7 @@ import { collection, query, orderBy, serverTimestamp, doc, Timestamp } from 'fir
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { PlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
 
 // This represents the structure of a post document in Firestore
 interface Post {
@@ -46,8 +48,10 @@ export default function CollabNestPage() {
   const firestore = useFirestore();
   
   const [newPostContent, setNewPostContent] = useState('');
+  const [selectedImage, setSelectedImage] = useState<ImagePlaceholder | null>(null);
   const [whoToFollow, setWhoToFollow] = useState(initialWhoToFollow);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
+  const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
   
   // Memoize the Firestore query to prevent re-running on every render.
   // Only query for posts if the user is logged in, to comply with security rules.
@@ -60,17 +64,19 @@ export default function CollabNestPage() {
   const handlePost = () => {
     if (!newPostContent.trim() || !user || !firestore) return;
 
-    const newPost = {
+    const newPost: Omit<Post, 'id' | 'timestamp'> & { timestamp: any } = {
       authorId: user.uid,
       authorName: user.displayName || user.email || 'Anonymous',
       authorAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`,
       content: newPostContent,
       timestamp: serverTimestamp(),
       likedBy: [],
+      ...(selectedImage && { image: selectedImage.imageUrl, imageHint: selectedImage.imageHint }),
     };
 
     addDocumentNonBlocking(collection(firestore, 'posts'), newPost);
     setNewPostContent('');
+    setSelectedImage(null);
   };
 
   const handleLike = (post: Post) => {
@@ -97,6 +103,11 @@ export default function CollabNestPage() {
         ? { ...person, isFollowing: !person.isFollowing }
         : person
     ));
+  };
+  
+  const handleImageSelect = (image: ImagePlaceholder) => {
+    setSelectedImage(image);
+    setIsImageSelectorOpen(false);
   };
 
   // Component for displaying and adding comments
@@ -194,7 +205,7 @@ export default function CollabNestPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Create Post */}
           <Card>
-            <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-4">
+            <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-4">
               {isUserLoading ? <Skeleton className="size-10 rounded-full" /> : (
                 <Avatar>
                   <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} alt={user?.displayName || 'user'} />
@@ -209,23 +220,57 @@ export default function CollabNestPage() {
                         </p>
                     </div>
                   ) : (
-                    <Textarea 
-                      placeholder={user ? `What's on your mind, ${user.displayName?.split(' ')[0] || user.email}?` : `What's on your mind?`}
-                      className="w-full bg-muted border-0 focus-visible:ring-1 ring-primary p-4" 
-                      rows={2}
-                      value={newPostContent}
-                      onChange={(e) => setNewPostContent(e.target.value)}
-                      disabled={!user || isUserLoading}
-                    />
+                    <>
+                      <Textarea 
+                        placeholder={user ? `What's on your mind, ${user.displayName?.split(' ')[0] || user.email}?` : `What's on your mind?`}
+                        className="w-full bg-muted border-0 focus-visible:ring-1 ring-primary p-4" 
+                        rows={2}
+                        value={newPostContent}
+                        onChange={(e) => setNewPostContent(e.target.value)}
+                        disabled={!user || isUserLoading}
+                      />
+                      {selectedImage && (
+                        <div className="mt-4 relative w-48">
+                          <Image src={selectedImage.imageUrl} alt={selectedImage.description} width={192} height={108} className="rounded-lg" />
+                          <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => setSelectedImage(null)}>
+                            <p className="sr-only">Remove image</p>x
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
             </CardHeader>
              {user && (
                 <CardFooter className="flex justify-between items-center">
                     <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground">
-                            <ImageIcon className="mr-2" /> Image
-                        </Button>
+                      <Dialog open={isImageSelectorOpen} onOpenChange={setIsImageSelectorOpen}>
+                        <DialogTrigger asChild>
+                           <Button variant="ghost" size="sm" className="text-muted-foreground">
+                              <ImageIcon className="mr-2" /> Image
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Select an Image</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid grid-cols-2 gap-4 py-4">
+                            {PlaceHolderImages.map(img => (
+                              <div key={img.id} className="cursor-pointer group" onClick={() => handleImageSelect(img)}>
+                                <Image 
+                                  src={img.imageUrl} 
+                                  alt={img.description}
+                                  width={300}
+                                  height={200}
+                                  className="rounded-md object-cover aspect-video group-hover:ring-2 ring-primary"
+                                />
+                                <p className="text-sm text-muted-foreground mt-1">{img.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+
                         <Button variant="ghost" size="sm" className="text-muted-foreground">
                             <Video className="mr-2" /> Video
                         </Button>
@@ -380,3 +425,5 @@ export default function CollabNestPage() {
     </div>
   );
 }
+
+    

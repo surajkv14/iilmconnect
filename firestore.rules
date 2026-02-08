@@ -4,8 +4,8 @@
  *
  * @section Core Philosophy
  * This ruleset enforces a strict, user-centric security model. Data is segregated into two main categories:
- * 1. Private User Data: Information stored under the `/users/{userId}` path is strictly owned by and accessible only to that user.
- * 2. Shared/Public Content: Top-level collections like `/posts`, `/comments`, and `/classes` are generally readable by any authenticated user but can only be modified by their designated owner (e.g., author, teacher).
+ * 1. Private User Data: Information stored under the `/users/{userId}` path is strictly owned by and accessible only to that user, unless an admin role is required.
+ * 2. Shared/Public Content: Top-level collections like `/posts`, `/comments`, and `/classes` are generally readable by any authenticated user but can only be modified by their designated owner (e.g., author, teacher) or an admin.
  *
  * @section Data Structure
  * The data is organized into a combination of user-nested subcollections for private data (e.g., profiles, notifications) and top-level collections for shared application data. This structure optimizes for common query patterns and simplifies security logic.
@@ -13,8 +13,9 @@
  * @section Key Security Decisions
  * - Default Deny: All paths are closed by default. Access is granted on a per-collection basis.
  * - Authentication Required: No data is accessible to unauthenticated users. All rules require a user to be signed in.
- * - No User Listing: The top-level `/users` collection cannot be listed, preventing enumeration of all application users.
- * - Admin-Managed Content: Collections without a clear ownership model in the schema (e.g., `/tags`, `/mess_meals`) are configured as read-only for general users. Writes to these collections would require an admin role, which is not defined in the current model.
+ * - Admin Role: An `isAdmin()` function checks the `userType` on a user's document, granting elevated privileges for managing content and users.
+ * - No User Listing (for non-admins): The top-level `/users` collection cannot be listed by regular users, preventing enumeration of all application users.
+ * - Admin-Managed Content: Collections without a clear ownership model in the schema (e.g., `/tags`, `/mess_meals`) are configured as read-only for general users. Writes to these collections are restricted to admins.
  *
  * @section Denormalization for Authorization
  * To ensure fast and simple authorization, ownership and role data are denormalized directly onto the documents being secured. For example, `Post` documents contain an `authorId` and `Class` documents contain a `teacherId`. This avoids slow, costly, and sometimes impossible cross-document `get()` calls in rules.
@@ -60,6 +61,14 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && isExistingDoc();
     }
+    
+    /**
+     * @description Checks if the current user has the 'admin' userType.
+     * This grants elevated privileges across the application.
+     */
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
+    }
 
     /**
      * @description Checks if the requesting user is the teacher of a given class.
@@ -76,71 +85,65 @@ service cloud.firestore {
     /**
      * @description Manages core user account data.
      * @path /users/{userId}
-     * @allow (create) An authenticated user can create their own user document.
-     * @deny (create) A user (`user_abc`) cannot create a document for another user (`user_xyz`).
-     * @principle Enforces Self-Creation and Ownership. A user's root document is controlled only by them.
+     * @allow (get) A user can get their own document. An admin can get any user's document.
+     * @allow (list) Only admins can list all users.
+     * @principle Enforces Self-Creation and Ownership, with admin override.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Disallow listing all users for security.
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isExistingOwner(userId) || isAdmin();
+      allow delete: if isExistingOwner(userId) || isAdmin();
 
       /**
        * @description Manages a user's student profile.
        * @path /users/{userId}/student_profile/{profileId}
-       * @allow (create) A user (`user_abc`) can create a student profile under their own user path.
-       * @deny (read) A user (`user_xyz`) cannot read the student profile of another user (`user_abc`).
-       * @principle Restricts access to a user's own data tree.
+       * @principle Restricts access to a user's own data tree, with admin override.
        */
       match /student_profile/{profileId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       /**
        * @description Manages a user's faculty profile.
        * @path /users/{userId}/faculty_profile/{profileId}
-       * @allow (update) A faculty member can update their own profile.
-       * @deny (create) Another user cannot create a faculty profile for someone else.
-       * @principle Restricts access to a user's own data tree.
+       * @principle Restricts access to a user's own data tree, with admin override.
        */
       match /faculty_profile/{profileId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       /**
        * @description Manages a user's alumni profile.
        * @path /users/{userId}/alumni_profile/{profileId}
-       * @allow (read) An alumni can read their own profile.
-       * @deny (delete) A user cannot delete another user's alumni profile.
-       * @principle Restricts access to a user's own data tree.
+       * @principle Restricts access to a user's own data tree, with admin override.
        */
       match /alumni_profile/{profileId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       /**
        * @description Manages a user's notifications.
        * @path /users/{userId}/notifications/{notificationId}
-       * @allow (read) A user can read their own notifications.
-       * @deny (read) A user cannot read notifications intended for another user.
-       * @principle Restricts access to a user's own data tree.
+       * @principle Restricts access to a user's own data tree. Notifications are system-generated.
        */
       match /notifications/{notificationId} {
         allow get, list: if isOwner(userId);
-        allow create: if false; // Notifications are likely created by a backend service, not the client.
+        allow create: if false; // Notifications are created by a backend service, not the client.
         allow update: if isExistingOwner(userId); // User can mark as read.
         allow delete: if isExistingOwner(userId);
+      }
+      
+      /**
+       * @description Manages a user's grades.
+       * @path /users/{userId}/grades/{gradeId}
+       * @principle A user can see their own grades. A teacher can see grades for their class. Admins can see all.
+       */
+      match /grades/{gradeId} {
+        allow get: if isOwner(userId) || isTeacherOfClass(resource.data.classId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create, update, delete: if isTeacherOfClass(request.resource.data.classId) || isAdmin();
       }
     }
 
@@ -151,43 +154,36 @@ service cloud.firestore {
     /**
      * @description Manages public posts.
      * @path /posts/{postId}
-     * @allow (read) Any signed-in user can read any post.
-     * @deny (update) A user (`user_abc`) cannot update a post written by another user (`user_xyz`), unless they are liking it.
-     * @principle Implements Public Read with Owner-Only Writes for content, and allows any user to modify the 'likedBy' field.
+     * @allow (update) Any signed-in user can update the `likedBy` field. The author or an admin can update the whole document.
+     * @principle Implements Public Read with Owner/Admin-Only Writes, but allows any user to like.
      */
     match /posts/{postId} {
       allow get, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.authorId) || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy']));
-      allow delete: if isExistingOwner(resource.data.authorId);
+      allow update: if (isExistingOwner(resource.data.authorId) || isAdmin()) || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy']));
+      allow delete: if isExistingOwner(resource.data.authorId) || isAdmin();
 
       /**
        * @description Manages comments on a post.
        * @path /posts/{postId}/comments/{commentId}
-       * @allow (create) Any signed-in user can comment on a post.
-       * @deny (delete) A user cannot delete another user's comment.
-       * @principle Implements Public Read with Owner-Only Writes, based on the denormalized `authorId` field.
+       * @principle Implements Public Read with Owner/Admin-Only Writes.
        */
       match /comments/{commentId} {
         allow get, list: if isSignedIn();
         allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-        allow update: if isExistingOwner(resource.data.authorId) && request.resource.data.authorId == resource.data.authorId;
-        allow delete: if isExistingOwner(resource.data.authorId);
+        allow update: if isExistingOwner(resource.data.authorId) || isAdmin();
+        allow delete: if isExistingOwner(resource.data.authorId) || isAdmin();
       }
     }
 
     /**
      * @description Manages tags for posts.
      * @path /tags/{tagId}
-     * @allow (read) Any signed-in user can read the list of tags.
-     * @deny (create, update, delete) No user can modify tags directly.
-     * @principle Treats this as read-only data for clients. Modification should be handled by an admin role or backend process.
+     * @principle Read-only for clients. Managed by admins.
      */
     match /tags/{tagId} {
       allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
@@ -197,30 +193,34 @@ service cloud.firestore {
     /**
      * @description Manages class/course information.
      * @path /classes/{classId}
-     * @allow (read) Any signed-in user can view class information.
-     * @deny (update) Only the teacher (`teacherId`) assigned to the class can modify it.
-     * @principle Implements Public Read with Owner-Only Writes, based on the denormalized `teacherId` field.
+     * @principle Public Read with Teacher/Admin-Only Writes.
      */
     match /classes/{classId} {
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.teacherId) && request.resource.data.teacherId == resource.data.teacherId;
-      allow delete: if isExistingOwner(resource.data.teacherId);
+      allow create: if isTeacherOfClass(classId) || isAdmin();
+      allow update: if isTeacherOfClass(classId) || isAdmin();
+      allow delete: if isTeacherOfClass(classId) || isAdmin();
 
       /**
        * @description Manages student attendance for a class.
        * @path /classes/{classId}/attendances/{attendanceId}
-       * @allow (read) The class teacher OR the specific student (`studentId`) can read an attendance record.
-       * @deny (list) A student cannot list all attendance records for a class.
-       * @principle Enforces a shared access model. The teacher has full control, while the student has read-only access to their own data.
+       * @principle The teacher has full control, while the student has read-only access to their own data.
        */
       match /attendances/{attendanceId} {
         allow get: if isTeacherOfClass(classId) || (isExistingDoc() && isOwner(resource.data.studentId));
         allow list: if isTeacherOfClass(classId);
-        allow create: if isTeacherOfClass(classId);
-        allow update: if isTeacherOfClass(classId) && isExistingDoc();
-        allow delete: if isTeacherOfClass(classId) && isExistingDoc();
+        allow create, update, delete: if isTeacherOfClass(classId);
       }
+      
+      /**
+       * @description Manages assignments for a class.
+       * @path /classes/{classId}/assignments/{assignmentId}
+       * @principle All authenticated users can read assignments, but only the teacher or an admin can manage them.
+       */
+       match /assignments/{assignmentId} {
+        allow get, list: if isSignedIn();
+        allow write: if isTeacherOfClass(classId) || isAdmin();
+       }
     }
 
     // -------------------------------------------------------------------------
@@ -230,36 +230,26 @@ service cloud.firestore {
     /**
      * @description Manages available mess meals.
      * @path /mess_meals/{mealId}
-     * @allow (read) Any signed-in user can read meal information.
-     * @deny (create, update, delete) No user can modify meals directly.
-     * @principle Treats this as read-only data for clients. Modification should be handled by a mess staff role or backend process.
+     * @principle Read-only for clients. Managed by admins.
      */
     match /mess_meals/{mealId} {
       allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow write: if isAdmin();
 
       /**
        * @description Manages consumption data entered by mess staff.
        * @path /mess_meals/{mealId}/staff_consumption_data/{consumptionDataId}
-       * @allow (read) Any signed-in user can read consumption data.
-       * @deny (create, update, delete) No user can modify consumption data directly.
-       * @principle Treats this as read-only data for clients. Modification should be handled by a mess staff role or backend process.
+       * @principle Read-only for clients. Managed by admins or a future 'mess_staff' role.
        */
       match /staff_consumption_data/{consumptionDataId} {
         allow get, list: if isSignedIn();
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+        allow write: if isAdmin(); // Replace with `isMessStaff()` if role is added
       }
     }
 
     /**
      * @description Manages student meal selections.
      * @path /student_meal_selections/{selectionId}
-     * @allow (list) A user can only list their own meal selections.
-     * @deny (create) A user cannot create a selection for another user.
      * @principle Enforces strict data ownership for privacy.
      */
     match /student_meal_selections/{selectionId} {

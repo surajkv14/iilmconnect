@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "A beautiful sunset over the mountains.",
+      "imageUrl": "https://images.unsplash.com/photo-1611366376326-5eaf36b54355?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtb3VudGFpbiUyMHN1bnNldHxlbnwwfHx8fDE3NzA1MjgxMTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "mountain sunset"
+    },
+    {
+      "id": "2",
+      "description": "A modern university campus building.",
+      "imageUrl": "https://images.unsplash.com/photo-1590579491624-f98f36d4c763?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx1bml2ZXJzaXR5JTIwY2FtcHVzfGVufDB8fHx8MTc3MDQ4MzU0NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "university campus"
+    },
+    {
+      "id": "3",
+      "description": "Students collaborating on a project in a library.",
+      "imageUrl": "https://images.unsplash.com/photo-1681487097558-8856c9212cb0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxzdHVkZW50cyUyMGNvbGxhYm9yYXRpbmd8ZW58MHx8fHwxNzcwNTU1MjY2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "students collaborating"
+    },
+    {
+      "id": "4",
+      "description": "A robot arm moving a block in a technology lab.",
+      "imageUrl": "https://images.unsplash.com/photo-1661882217431-b64b303fb1d0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyb2JvdGljcyUyMGxhYnxlbnwwfHx8fDE3NzA0Njg0MDZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "robotics lab"
+    },
+    {
+      "id": "5",
+      "description": "A person holding a glowing lightbulb.",
+      "imageUrl": "https://images.unsplash.com/photo-1589829068065-20154e8f9642?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxpbm5vdmF0aW9uJTIwaWRlYXxlbnwwfHx8fDE3NzA1NjY3Nzd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "innovation idea"
+    },
+    {
+      "id": "6",
+      "description": "A graduation cap thrown in the air.",
+      "imageUrl": "https://images.unsplash.com/photo-1607013407627-6ee814329547?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxncmFkdWF0aW9uJTIwY2VyZW1vbnl8ZW58MHx8fHwxNzcwNTYwNjE1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "graduation ceremony"
+    }
+  ]
 }

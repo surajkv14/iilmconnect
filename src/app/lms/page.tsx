@@ -1,17 +1,22 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CourseCard, type Course } from '@/components/lms/course-card';
+import { CourseCard } from '@/components/lms/course-card';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
-const courses: Course[] = [
-  { title: 'Introduction to AI', code: 'CS-401', instructor: 'Dr. Alan Turing', progress: 75 },
-  { title: 'Data Structures', code: 'CS-201', instructor: 'Dr. Ada Lovelace', progress: 50 },
-  { title: 'Web Development', code: 'IT-305', instructor: 'Dr. Tim Berners-Lee', progress: 90 },
-  { title: 'Database Management', code: 'CS-310', instructor: 'Dr. Edgar Codd', progress: 60 },
-];
+// Updated Course type to match Firestore data model
+interface Course {
+  id: string;
+  name: string;
+  code: string;
+  instructor: string;
+}
 
 const performanceData = [
     { name: 'Quiz 1', score: 85, max: 100 },
@@ -48,6 +53,57 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameT
 };
 
 export default function LmsPage() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  
+  const coursesQuery = useMemoFirebase(() => 
+    (firestore && user) ? collection(firestore, 'classes') : null,
+    [firestore, user]
+  );
+  
+  const { data: courses, isLoading: isLoadingCourses } = useCollection<Course>(coursesQuery);
+
+  const renderCourseCards = () => {
+    if (isLoadingCourses || isUserLoading) {
+      return (
+        <div className="grid gap-6 md:grid-cols-2">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+        </div>
+      );
+    }
+
+    if (!user) {
+      return (
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <p>Please <Link href="/login" className="text-primary underline">log in</Link> to see your courses.</p>
+          </CardContent>
+        </Card>
+      );
+    }
+    
+    if (!courses || courses.length === 0) {
+       return (
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <p>No courses are available at this time.</p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="grid gap-6 md:grid-cols-2">
+        {courses.map(course => (
+          <CourseCard key={course.id} course={course} />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between space-y-2">
@@ -58,11 +114,7 @@ export default function LmsPage() {
         <div className="lg:col-span-2 space-y-8">
           <div>
             <h2 className="text-2xl font-bold tracking-tight mb-4">My Courses</h2>
-            <div className="grid gap-6 md:grid-cols-2">
-              {courses.map(course => (
-                <CourseCard key={course.code} course={course} />
-              ))}
-            </div>
+            {renderCourseCards()}
           </div>
         </div>
 
@@ -129,3 +181,4 @@ export default function LmsPage() {
     </div>
   );
 }
+    

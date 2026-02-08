@@ -1,37 +1,32 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type Course = {
-  title: string;
+  id: string;
+  name: string;
   code: string;
   instructor: string;
-  progress: number;
 };
 
 export function CourseCard({ course }: { course: Course }) {
   return (
     <Card className="flex flex-col">
       <CardHeader>
-        <CardTitle className="text-lg">{course.title}</CardTitle>
+        <CardTitle className="text-lg">{course.name}</CardTitle>
         <p className="text-sm text-muted-foreground">{course.code}</p>
       </CardHeader>
       <CardContent className="flex-grow">
         <p className="text-sm font-medium">Instructor: {course.instructor}</p>
       </CardContent>
       <CardFooter className="flex flex-col items-start gap-2">
-        <div className="w-full">
-          <div className="flex justify-between items-center mb-1">
-            <p className="text-xs text-muted-foreground">Progress</p>
-            <p className="text-xs font-semibold">{course.progress}%</p>
-          </div>
-          <Progress value={course.progress} aria-label={`${course.progress}% course progress`} />
-        </div>
         <Button asChild variant="outline" size="sm" className="mt-2 w-full">
-          <Link href={`/lms/${course.code}`}>View Course</Link>
+          {/* The URL now uses the Firestore document ID for direct lookup */}
+          <Link href={`/lms/${course.id}`}>View Course</Link>
         </Button>
       </CardFooter>
     </Card>
   );
 }
+
+    

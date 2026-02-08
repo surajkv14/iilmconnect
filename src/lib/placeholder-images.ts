@@ -1,3 +1,5 @@
+import placeholderData from './placeholder-images.json';
+
 export type ImagePlaceholder = {
   id: string;
   description: string;
@@ -5,4 +7,6 @@ export type ImagePlaceholder = {
   imageHint: string;
 };
 
-export const PlaceHolderImages: ImagePlaceholder[] = [];
+export const PlaceHolderImages: ImagePlaceholder[] = placeholderData.placeholderImages;
+
+    

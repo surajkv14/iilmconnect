@@ -2,93 +2,102 @@
 
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, ClipboardCheck, GraduationCap, Download } from 'lucide-react';
+import { FileText, ClipboardCheck, GraduationCap, Download, AlertTriangle } from 'lucide-react';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { doc, collection, query, where } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { format } from 'date-fns';
 
-// Mock data - In a real app, this would be fetched from an API
-const coursesData = [
-  { title: 'Introduction to AI', code: 'CS-401', instructor: 'Dr. Alan Turing', progress: 75 },
-  { title: 'Data Structures', code: 'CS-201', instructor: 'Dr. Ada Lovelace', progress: 50 },
-  { title: 'Web Development', code: 'IT-305', instructor: 'Dr. Tim Berners-Lee', progress: 90 },
-  { title: 'Database Management', code: 'CS-310', instructor: 'Dr. Edgar Codd', progress: 60 },
-];
+interface Course {
+  id: string;
+  name: string;
+  code: string;
+  instructor: string;
+}
 
-const courseDetails: Record<string, any> = {
-    'CS-401': {
-        lectures: [
-            { title: 'Week 1: History of AI', content: 'From the Turing test to Deep Blue.' },
-            { title: 'Week 2: Search Algorithms', content: 'Understanding BFS, DFS, and A*.' },
-            { title: 'Week 3: Machine Learning Basics', content: 'Introduction to supervised and unsupervised learning.' },
-        ],
-        assignments: [
-            { title: 'Assignment 1: Search Maze', due: 'Feb 20, 2026', status: 'Submitted' },
-            { title: 'Assignment 2: ML Model', due: 'Mar 05, 2026', status: 'Pending' },
-        ],
-        grades: [
-            { item: 'Quiz 1', score: '85/100', grade: 'A' },
-            { item: 'Assignment 1', score: '92/100', grade: 'A+' },
-        ]
-    },
-    'CS-201': {
-        lectures: [
-            { title: 'Week 1: Intro to Data Structures', content: 'Arrays, Linked Lists.' },
-            { title: 'Week 2: Stacks & Queues', content: 'LIFO and FIFO structures.' },
-        ],
-        assignments: [
-             { title: 'Assignment 1: Linked List', due: 'Feb 15, 2026', status: 'Submitted' },
-        ],
-        grades: [
-             { item: 'Quiz 1', score: '90/100', grade: 'A+' },
-        ]
-    },
-     'IT-305': {
-        lectures: [
-            { title: 'Week 1: HTML & CSS', content: 'Basics of web structure and styling.' },
-            { title: 'Week 2: JavaScript', content: 'Making web pages interactive.' },
-        ],
-        assignments: [],
-        grades: []
-    },
-     'CS-310': {
-        lectures: [],
-        assignments: [],
-        grades: []
-    }
-};
+interface Assignment {
+  id: string;
+  title: string;
+  dueDate: string;
+}
+
+interface UserGrade {
+  id: string;
+  assignmentId: string;
+  score: number;
+  grade: string;
+}
 
 export default function CourseDetailPage() {
     const params = useParams();
-    const courseCode = params.courseCode as string;
-    const course = coursesData.find(c => c.code === courseCode);
-    const details = courseDetails[courseCode];
+    // The parameter is the Firestore document ID, even though the filename is [courseCode]
+    const classId = params.courseCode as string; 
+    
+    const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
 
+    const courseRef = useMemoFirebase(() => (firestore && classId) ? doc(firestore, 'classes', classId) : null, [firestore, classId]);
+    const { data: course, isLoading: isLoadingCourse, error: courseError } = useDoc<Course>(courseRef);
+
+    const assignmentsQuery = useMemoFirebase(() => (firestore && classId) ? collection(firestore, 'classes', classId, 'assignments') : null, [firestore, classId]);
+    const { data: assignments, isLoading: isLoadingAssignments } = useCollection<Assignment>(assignmentsQuery);
+
+    const gradesQuery = useMemoFirebase(() => (user && firestore && classId) ? query(collection(firestore, 'users', user.uid, 'grades'), where('classId', '==', classId)) : null, [user, firestore, classId]);
+    const { data: grades, isLoading: isLoadingGrades } = useCollection<UserGrade>(gradesQuery);
+
+    const getGradeForAssignment = (assignmentId: string) => {
+        return grades?.find(g => g.assignmentId === assignmentId);
+    };
+
+    if (isLoadingCourse || isUserLoading) {
+        return (
+            <div className="space-y-8">
+                <Skeleton className="h-12 w-3/4" />
+                <Skeleton className="h-8 w-1/2" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <Skeleton className="h-64 w-full" />
+                    <Skeleton className="h-64 w-full" />
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Not Logged In</AlertTitle>
+                <AlertDescription>
+                    Please log in to view course details.
+                </AlertDescription>
+            </Alert>
+        );
+    }
+    
     if (!course) {
-        return <div className="p-4">Course not found.</div>;
+        return (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                    {courseError ? "You don't have permission to view this course." : "Course not found."}
+                </AlertDescription>
+            </Alert>
+        );
     }
 
     return (
         <div className="space-y-8">
             <div>
                 <p className="text-muted-foreground">{course.code}</p>
-                <h1 className="text-3xl font-bold tracking-tight">{course.title}</h1>
+                <h1 className="text-3xl font-bold tracking-tight">{course.name}</h1>
                 <p className="text-lg text-muted-foreground">Instructor: {course.instructor}</p>
             </div>
-
-             <Card>
-                <CardHeader>
-                    <CardTitle>Your Progress</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center gap-4">
-                        <Progress value={course.progress} className="w-full" />
-                        <span className="font-bold text-lg">{course.progress}%</span>
-                    </div>
-                </CardContent>
-            </Card>
 
             <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                 <Card>
@@ -98,12 +107,14 @@ export default function CourseDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <Accordion type="single" collapsible className="w-full">
-                            {details.lectures.length > 0 ? details.lectures.map((lecture: any, index: number) => (
-                                <AccordionItem value={`item-${index}`} key={index}>
-                                    <AccordionTrigger>{lecture.title}</AccordionTrigger>
-                                    <AccordionContent>{lecture.content}</AccordionContent>
-                                </AccordionItem>
-                            )) : <p className="text-muted-foreground">No lectures available yet.</p>}
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger>Week 1: Introduction</AccordionTrigger>
+                                <AccordionContent>Overview of the course, learning objectives, and introduction to key concepts.</AccordionContent>
+                            </AccordionItem>
+                             <AccordionItem value="item-2">
+                                <AccordionTrigger>Week 2: Core Concepts</AccordionTrigger>
+                                <AccordionContent>Deep dive into the fundamental principles and theories.</AccordionContent>
+                            </AccordionItem>
                         </Accordion>
                     </CardContent>
                 </Card>
@@ -113,7 +124,7 @@ export default function CourseDetailPage() {
                         <CardTitle>Assignments</CardTitle>
                     </CardHeader>
                     <CardContent>
-                         {details.assignments.length > 0 ? (
+                         {isLoadingAssignments ? <Skeleton className="h-24" /> : assignments && assignments.length > 0 ? (
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -124,13 +135,15 @@ export default function CourseDetailPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {details.assignments.map((assignment: any, index: number) => (
-                                        <TableRow key={index}>
+                                    {assignments.map((assignment) => {
+                                      const grade = getGradeForAssignment(assignment.id);
+                                      return (
+                                        <TableRow key={assignment.id}>
                                             <TableCell className="font-medium">{assignment.title}</TableCell>
-                                            <TableCell>{assignment.due}</TableCell>
+                                            <TableCell>{format(new Date(assignment.dueDate), 'MMM dd, yyyy')}</TableCell>
                                             <TableCell>
-                                                <Badge variant={assignment.status === 'Submitted' ? 'secondary' : 'outline'}>
-                                                    {assignment.status}
+                                                <Badge variant={grade ? 'secondary' : 'outline'}>
+                                                    {grade ? 'Graded' : 'Pending'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -139,7 +152,8 @@ export default function CourseDetailPage() {
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                      )
+                                    })}
                                 </TableBody>
                             </Table>
                          ) : <p className="text-muted-foreground">No assignments posted yet.</p>}
@@ -152,7 +166,7 @@ export default function CourseDetailPage() {
                     <CardTitle>My Grades</CardTitle>
                 </CardHeader>
                 <CardContent>
-                     {details.grades.length > 0 ? (
+                     {isLoadingGrades ? <Skeleton className="h-24" /> : grades && grades.length > 0 ? (
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -162,15 +176,18 @@ export default function CourseDetailPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {details.grades.map((grade: any, index: number) => (
-                                    <TableRow key={index}>
-                                        <TableCell className="font-medium">{grade.item}</TableCell>
-                                        <TableCell>{grade.score}</TableCell>
+                                {grades.map((grade) => {
+                                  const assignment = assignments?.find(a => a.id === grade.assignmentId);
+                                  return (
+                                    <TableRow key={grade.id}>
+                                        <TableCell className="font-medium">{assignment?.title || 'Assessment'}</TableCell>
+                                        <TableCell>{grade.score}/100</TableCell>
                                         <TableCell>
                                             <Badge>{grade.grade}</Badge>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                  )
+                                })}
                             </TableBody>
                         </Table>
                      ) : <p className="text-muted-foreground">No grades posted yet.</p>}
@@ -179,3 +196,4 @@ export default function CourseDetailPage() {
         </div>
     );
 }
+    
