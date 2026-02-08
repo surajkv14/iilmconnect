@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 interface Course {
   id: string;
   name: string;
-  code: string;
+  semester: string;
   instructor: string;
   teacherId: string;
 }
@@ -275,3 +275,5 @@ export default function LmsPage() {
         </div>
     );
 }
+
+    

@@ -28,7 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const classSchema = z.object({
   name: z.string().min(3, 'Class name must be at least 3 characters long'),
-  code: z.string().min(3, 'Class code must be at least 3 characters long (e.g., CS-101)'),
+  semester: z.string().min(3, 'Semester must be at least 3 characters long (e.g., Fall 2024)'),
 });
 
 type ClassFormValues = z.infer<typeof classSchema>;
@@ -48,7 +48,7 @@ export function CreateClassDialog({ isOpen, setIsOpen }: CreateClassDialogProps)
     resolver: zodResolver(classSchema),
     defaultValues: {
       name: '',
-      code: '',
+      semester: '',
     },
   });
 
@@ -99,12 +99,12 @@ export function CreateClassDialog({ isOpen, setIsOpen }: CreateClassDialogProps)
               />
                <FormField
                 control={form.control}
-                name="code"
+                name="semester"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Class Code</FormLabel>
+                    <FormLabel>Semester</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., CS-101" {...field} />
+                      <Input placeholder="e.g., Fall 2024" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -123,3 +123,5 @@ export function CreateClassDialog({ isOpen, setIsOpen }: CreateClassDialogProps)
     </Dialog>
   );
 }
+
+    

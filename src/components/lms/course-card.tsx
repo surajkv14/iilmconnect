@@ -5,7 +5,7 @@ import Link from 'next/link';
 export type Course = {
   id: string;
   name: string;
-  code: string;
+  semester: string;
   instructor: string;
 };
 
@@ -14,7 +14,7 @@ export function CourseCard({ course }: { course: Course }) {
     <Card className="flex flex-col">
       <CardHeader>
         <CardTitle className="text-lg">{course.name}</CardTitle>
-        <p className="text-sm text-muted-foreground">{course.code}</p>
+        <p className="text-sm text-muted-foreground">{course.semester}</p>
       </CardHeader>
       <CardContent className="flex-grow">
         <p className="text-sm font-medium">Instructor: {course.instructor}</p>

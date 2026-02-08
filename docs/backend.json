@@ -316,9 +316,9 @@
           "type": "string",
           "description": "Name of the class."
         },
-        "code": {
+        "semester": {
           "type": "string",
-          "description": "The course code, e.g., 'CS-401'."
+          "description": "The semester the class is offered, e.g., 'Fall 2024'."
         },
         "instructor": {
           "type": "string",
@@ -336,7 +336,7 @@
       "required": [
         "id",
         "name",
-        "code",
+        "semester",
         "instructor",
         "teacherId"
       ]

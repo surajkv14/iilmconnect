@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle, Link as LinkIcon, UserPlus, Trash2, Upload } from 'lucide-react';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -22,7 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 interface Course {
   id: string;
   name: string;
-  code: string;
+  semester: string;
   instructor: string;
   teacherId: string;
   inviteCode?: string;
@@ -53,7 +53,6 @@ interface EnrolledStudent {
 
 export default function CourseDetailPage() {
     const params = useParams();
-    // The parameter is the Firestore document ID, even though the filename is [courseCode]
     const classId = params.courseCode as string; 
     
     const { user, isUserLoading } = useUser();
@@ -77,6 +76,11 @@ export default function CourseDetailPage() {
     
     const isTeacher = !isLoadingCourse && !isUserLoading && user?.uid === course?.teacherId;
 
+    const isEnrolled = useMemo(() => {
+        if (!user || !enrolledStudents) return false;
+        return enrolledStudents.some(student => student.id === user.uid);
+    }, [user, enrolledStudents]);
+    
     const getGradeForAssignment = (assignmentId: string) => {
         return grades?.find(g => g.assignmentId === assignmentId);
     };
@@ -94,7 +98,33 @@ export default function CourseDetailPage() {
         setStudentToRemove(null); // Close the dialog
     }
 
-    if (isLoadingCourse || isUserLoading) {
+    const handleRequestToJoin = () => {
+        if (!firestore || !user || !course) {
+            toast({
+                variant: 'destructive',
+                title: "Error",
+                description: "You must be logged in to send a request.",
+            });
+            return;
+        }
+
+        const notificationsCollection = collection(firestore, 'users', course.teacherId, 'notifications');
+        addDocumentNonBlocking(notificationsCollection, {
+            userId: course.teacherId,
+            message: `${user.displayName || user.email} has requested to join your class: ${course.name}`,
+            timestamp: serverTimestamp(),
+            isRead: false,
+        });
+
+        toast({
+            title: "Request Sent",
+            description: "Your request to join has been sent to the instructor.",
+        });
+    };
+
+    const isLoading = isLoadingCourse || isUserLoading || isLoadingEnrolledStudents;
+
+    if (isLoading) {
         return (
             <div className="space-y-8">
                 <Skeleton className="h-12 w-3/4" />
@@ -125,7 +155,7 @@ export default function CourseDetailPage() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Error</AlertTitle>
                 <AlertDescription>
-                    {courseError ? "You don't have permission to view this course." : "Course not found."}
+                    {courseError ? "You may not have permission to view this course." : "Course not found."}
                 </AlertDescription>
             </Alert>
         );
@@ -365,17 +395,57 @@ export default function CourseDetailPage() {
         </div>
       );
     }
+    
+    if (isTeacher) {
+        return (
+            <div className="space-y-8">
+                <div>
+                    <p className="text-muted-foreground">{course.semester}</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{course.name}</h1>
+                    <p className="text-lg text-muted-foreground">Instructor: {course.instructor}</p>
+                    <Badge className="mt-2">Faculty View</Badge>
+                </div>
+                <FacultyView />
+            </div>
+        );
+    }
+
+    if (isEnrolled) {
+        return (
+            <div className="space-y-8">
+                <div>
+                    <p className="text-muted-foreground">{course.semester}</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{course.name}</h1>
+                    <p className="text-lg text-muted-foreground">Instructor: {course.instructor}</p>
+                </div>
+                <StudentView />
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <p className="text-muted-foreground">{course.code}</p>
-                <h1 className="text-3xl font-bold tracking-tight">{course.name}</h1>
-                <p className="text-lg text-muted-foreground">Instructor: {course.instructor}</p>
-                 {isTeacher && <Badge className="mt-2">Faculty View</Badge>}
-            </div>
-            {isTeacher ? <FacultyView /> : <StudentView />}
-        </div>
+        <Card className="max-w-2xl mx-auto mt-10">
+            <CardHeader>
+                <p className="text-sm text-muted-foreground">{course.semester}</p>
+                <CardTitle className="text-3xl">{course.name}</CardTitle>
+                <CardDescription className="text-lg">Instructor: {course.instructor}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>You are not enrolled in this course.</AlertTitle>
+                    <AlertDescription>
+                        You can send a request to the instructor to join this class.
+                    </AlertDescription>
+                </Alert>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={handleRequestToJoin}>
+                    <UserPlus className="mr-2" />
+                    Send Request to Join
+                </Button>
+            </CardFooter>
+        </Card>
     );
 }
 
