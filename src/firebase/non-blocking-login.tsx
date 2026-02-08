@@ -20,6 +20,12 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Initiate email/password sign-up (non-blocking). */
 export function initiateEmailSignUp(authInstance: Auth, email: string, password: string): void {
+  if (!email.endsWith('@iilm.edu')) {
+    const error = new FirebaseError('auth/invalid-email', 'Sign-up is restricted to @iilm.edu email addresses.');
+    errorEmitter.emit('auth-error', error);
+    return;
+  }
+  
   createUserWithEmailAndPassword(authInstance, email, password)
   .then(async (userCredential) => {
       const user = userCredential.user;
