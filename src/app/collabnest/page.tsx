@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,10 +56,20 @@ export default function CollabNestPage() {
   // Memoize the Firestore query to prevent re-running on every render.
   // Only query for posts if the user is logged in, to comply with security rules.
   const postsQuery = useMemoFirebase(() => 
-    (firestore && user) ? query(collection(firestore, 'posts'), orderBy('timestamp', 'desc')) : null
+    (firestore && user) ? collection(firestore, 'posts') : null
   , [firestore, user]);
 
-  const { data: posts, isLoading: isLoadingPosts } = useCollection<Post>(postsQuery);
+  const { data: postsData, isLoading: isLoadingPosts } = useCollection<Post>(postsQuery);
+
+  // Sort posts on the client-side to avoid needing a composite index in Firestore
+  const posts = useMemo(() => {
+    if (!postsData) return null;
+    return [...postsData].sort((a, b) => {
+      const timeA = a.timestamp?.toMillis() ?? 0;
+      const timeB = b.timestamp?.toMillis() ?? 0;
+      return timeB - timeA;
+    });
+  }, [postsData]);
 
   const handlePost = () => {
     if (!newPostContent.trim() || !user || !firestore) return;
