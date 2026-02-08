@@ -67,7 +67,9 @@ service cloud.firestore {
      * This grants elevated privileges across the application.
      */
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
+      // Safely check for the existence of the user document and the userType field.
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isSignedIn() && userDoc != null && userDoc.data.userType == 'admin';
     }
 
     /**
@@ -91,7 +93,7 @@ service cloud.firestore {
      * @principle Enforces Self-Creation and Ownership, with admin override.
      */
     match /users/{userId} {
-      allow get: if isSignedIn();
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) || isAdmin();
