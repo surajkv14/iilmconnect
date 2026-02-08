@@ -10,7 +10,7 @@ import { collection, query, where, doc, serverTimestamp } from 'firebase/firesto
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { BookCopy, Users, ClipboardCheck, PlusCircle, Check, XIcon, UserCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CreateClassDialog } from '@/components/lms/CreateClassDialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
