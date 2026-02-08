@@ -7,6 +7,8 @@ import {
   Users,
   Utensils,
   ChevronDown,
+  LogOut,
+  LogIn,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -28,12 +30,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '../ui/button';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth, useUser } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { Skeleton } from '../ui/skeleton';
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const pathname = usePathname();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   return (
     <Sidebar>
@@ -102,18 +115,33 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-         <DropdownMenu>
+        {isUserLoading ? (
+          <div className="flex h-12 w-full items-center gap-3 p-2">
+            <Skeleton className="size-8 rounded-full" />
+            <div
+              className="flex flex-col gap-1"
+              style={{ opacity: state === 'expanded' ? 1 : 0, transition: 'opacity 0.2s', width: state === 'expanded' ? '100px' : 0, overflow: 'hidden' }}
+            >
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+            </div>
+          </div>
+        ) : user ? (
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start h-12">
                 <div className="flex justify-between items-center w-full">
                   <div className="flex gap-3 items-center text-left">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src="https://picsum.photos/seed/user/40/40" alt="User" />
-                        <AvatarFallback>U</AvatarFallback>
+                      <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} alt={user.displayName || 'User'} />
+                      <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col" style={{ opacity: state === 'expanded' ? 1 : 0, transition: 'opacity 0.2s', width: state === 'expanded' ? 'auto' : 0, overflow: 'hidden'}}>
-                        <span className="text-sm font-medium text-sidebar-foreground">User</span>
-                        <span className="text-xs text-sidebar-foreground/70">user@iilm.edu</span>
+                    <div
+                      className="flex flex-col"
+                      style={{ opacity: state === 'expanded' ? 1 : 0, transition: 'opacity 0.2s', width: state === 'expanded' ? 'auto' : 0, overflow: 'hidden' }}
+                    >
+                      <span className="text-sm font-medium text-sidebar-foreground truncate">{user.displayName || user.email}</span>
+                      <span className="text-xs text-sidebar-foreground/70 truncate">{user.email}</span>
                     </div>
                   </div>
                   <ChevronDown className="h-4 w-4 text-sidebar-foreground/70" style={{ opacity: state === 'expanded' ? 1 : 0, transition: 'opacity 0.2s' }} />
@@ -126,9 +154,22 @@ export function AppSidebar() {
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : (
+          <SidebarMenuItem className="p-2">
+            <SidebarMenuButton asChild tooltip="Log In">
+              <Link href="/login">
+                <LogIn />
+                <span>Log In</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

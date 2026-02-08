@@ -1,4 +1,5 @@
 'use client';
+import { FirebaseError } from 'firebase/app';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 /**
@@ -7,6 +8,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
  */
 export interface AppEvents {
   'permission-error': FirestorePermissionError;
+  'auth-error': FirebaseError;
 }
 
 // A generic type for a callback function.
