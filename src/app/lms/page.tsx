@@ -5,14 +5,15 @@ import { CourseCard } from '@/components/lms/course-card';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-import { BookCopy, Users, ClipboardCheck, PlusCircle } from 'lucide-react';
+import { BookCopy, Users, ClipboardCheck, PlusCircle, Check, XIcon, UserCheck } from 'lucide-react';
 import { useState } from 'react';
 import { CreateClassDialog } from '@/components/lms/CreateClassDialog';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface Course {
   id: string;
@@ -24,6 +25,18 @@ interface Course {
 
 interface UserProfile {
     userType: 'student' | 'faculty' | 'admin' | 'alumni';
+}
+
+interface Notification {
+    id: string;
+    message: string;
+    type: 'message' | 'join_request';
+    status: 'pending' | 'approved' | 'rejected';
+    requesterId: string;
+    requesterName: string;
+    requesterEmail: string;
+    classId: string;
+    className: string;
 }
 
 const performanceData = [
@@ -38,11 +51,6 @@ const deadlines = [
     { course: 'Data Structures', task: 'Assignment 3', due: 'Feb 15, 2026' },
     { course: 'Web Development', task: 'Project Milestone 2', due: 'Feb 20, 2026' },
     { course: 'Introduction to AI', task: 'Research Paper', due: 'Feb 28, 2026' },
-]
-
-const announcements = [
-    { course: 'University', title: 'Mid-term break announced', date: 'Feb 10, 2026' },
-    { course: 'Web Development', title: 'Guest lecture on React Hooks', date: 'Feb 09, 2026' },
 ]
 
 const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
@@ -61,7 +69,6 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameT
 };
 
 const StudentDashboard = () => {
-    const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
     // For students, we show all courses as "My Courses". A real app would use an enrollment subcollection.
@@ -151,6 +158,7 @@ const StudentDashboard = () => {
 const FacultyDashboard = () => {
     const { user } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
     const [isCreateClassOpen, setCreateClassOpen] = useState(false);
 
     const coursesQuery = useMemoFirebase(() =>
@@ -158,10 +166,56 @@ const FacultyDashboard = () => {
         [firestore, user]
     );
     const { data: courses, isLoading: isLoadingCourses } = useCollection<Course>(coursesQuery);
+    
+    const notificationsQuery = useMemoFirebase(() => 
+        (user && firestore) ? collection(firestore, 'users', user.uid, 'notifications') : null, 
+        [user, firestore]
+    );
+    const { data: notifications, isLoading: isLoadingNotifications } = useCollection<Notification>(notificationsQuery);
+    
+    const joinRequests = useMemo(() => {
+        return notifications?.filter(n => n.type === 'join_request' && n.status === 'pending');
+    }, [notifications]);
 
-    // In a real app, these would be calculated with more complex queries
+    const handleApprove = (notification: Notification) => {
+        if (!firestore || !user) return;
+
+        // 1. Add student to the class's `students` subcollection
+        const studentDocRef = doc(firestore, 'classes', notification.classId, 'students', notification.requesterId);
+        const studentData = {
+            studentId: notification.requesterId,
+            studentName: notification.requesterName,
+            studentEmail: notification.requesterEmail,
+            enrollmentDate: serverTimestamp()
+        };
+        setDocumentNonBlocking(studentDocRef, studentData, {});
+
+        // 2. Update the notification status to 'approved'
+        const notifRef = doc(firestore, 'users', user.uid, 'notifications', notification.id);
+        updateDocumentNonBlocking(notifRef, { status: 'approved', isRead: true });
+
+        toast({
+            title: "Student Approved",
+            description: `${notification.requesterName} has been enrolled in ${notification.className}.`,
+        });
+    };
+
+    const handleReject = (notification: Notification) => {
+        if (!firestore || !user) return;
+        
+        // Update the notification status to 'rejected'
+        const notifRef = doc(firestore, 'users', user.uid, 'notifications', notification.id);
+        updateDocumentNonBlocking(notifRef, { status: 'rejected', isRead: true });
+        
+        toast({
+            title: "Request Rejected",
+            description: `The request from ${notification.requesterName} has been rejected.`,
+            variant: "destructive"
+        });
+    };
+
     const totalStudents = 125; 
-    const totalAssignments = courses?.length ? courses.length * 3 : 0; // Mock
+    const totalAssignments = courses?.length ? courses.length * 3 : 0; 
 
     return (
         <div className="space-y-8">
@@ -189,15 +243,45 @@ const FacultyDashboard = () => {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Assignments Graded</CardTitle>
-                        <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium">Enrollment Requests</CardTitle>
+                        <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totalAssignments}</div>
-                        <p className="text-xs text-muted-foreground">Needs to be graded by end of week.</p>
+                        <div className="text-2xl font-bold">{isLoadingNotifications ? <Skeleton className="h-8 w-10"/> : joinRequests?.length || 0}</div>
+                        <p className="text-xs text-muted-foreground">Pending requests to join your classes.</p>
                     </CardContent>
                 </Card>
             </div>
+            
+            {joinRequests && joinRequests.length > 0 && (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Enrollment Requests</CardTitle>
+                        <CardDescription>Review and respond to student requests to join your classes.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {joinRequests.map(req => (
+                            <div key={req.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                <div>
+                                    <p><span className="font-semibold">{req.requesterName}</span> wants to join <span className="font-semibold">{req.className}</span>.</p>
+                                    <p className="text-sm text-muted-foreground">{req.requesterEmail}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button size="icon" variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => handleReject(req)}>
+                                        <XIcon className="size-4" />
+                                        <span className="sr-only">Reject</span>
+                                    </Button>
+                                    <Button size="icon" variant="outline" className="text-green-600 hover:bg-green-600 hover:text-white" onClick={() => handleApprove(req)}>
+                                        <Check className="size-4" />
+                                        <span className="sr-only">Approve</span>
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
+
             <div>
                  <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-bold tracking-tight">Courses You Teach</h2>
@@ -275,5 +359,3 @@ export default function LmsPage() {
         </div>
     );
 }
-
-    

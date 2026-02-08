@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle, UserPlus, Trash2, Upload } from 'lucide-react';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -108,12 +108,20 @@ export default function CourseDetailPage() {
         }
 
         const notificationsCollection = collection(firestore, 'users', course.teacherId, 'notifications');
-        addDocumentNonBlocking(notificationsCollection, {
-            userId: course.teacherId,
-            message: `${user.displayName || user.email} has requested to join your class: ${course.name}`,
+        const notificationData = {
+            userId: course.teacherId, // The recipient of the notification
+            message: `${user.displayName || user.email} requested to join ${course.name}`,
             timestamp: serverTimestamp(),
             isRead: false,
-        });
+            type: 'join_request',
+            status: 'pending',
+            requesterId: user.uid,
+            requesterName: user.displayName || user.email,
+            requesterEmail: user.email,
+            classId: course.id,
+            className: course.name,
+        };
+        addDocumentNonBlocking(notificationsCollection, notificationData);
 
         toast({
             title: "Request Sent",
@@ -426,5 +434,3 @@ export default function CourseDetailPage() {
         </Card>
     );
 }
-
-    
