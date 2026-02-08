@@ -25,7 +25,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -50,7 +49,8 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   const form = useForm<AssignmentFormValues>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: {
@@ -127,31 +127,32 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
-                    <Popover modal={false}>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={'outline'}
-                            className={cn(
-                              'w-full pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground'
-                            )}
-                          >
-                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                    {!isCalendarOpen ? (
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !field.value && 'text-muted-foreground'
+                        )}
+                        onClick={() => setIsCalendarOpen(true)}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                      </Button>
+                    ) : (
+                      <div className="flex justify-center">
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            setIsCalendarOpen(false);
+                          }}
                           disabled={(date) => date < new Date() || date < new Date('1900-01-01')}
                           initialFocus
                         />
-                      </PopoverContent>
-                    </Popover>
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
