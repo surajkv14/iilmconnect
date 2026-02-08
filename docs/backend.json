@@ -367,6 +367,14 @@
         "details": {
           "type": "string",
           "description": "Detailed description of the assignment, can include links."
+        },
+        "submissionType": {
+          "type": "string",
+          "description": "The required submission type for the assignment.",
+          "enum": [
+            "text-entry",
+            "file-upload"
+          ]
         }
       },
       "required": [
@@ -374,7 +382,8 @@
         "classId",
         "title",
         "dueDate",
-        "details"
+        "details",
+        "submissionType"
       ]
     },
     "UserGrade": {
@@ -868,3 +877,5 @@
     "reasoning": "This Firestore structure is designed to support the IILM Connect application, encompassing LMS, CollabNest, and Mess portals. It prioritizes Authorization Independence and QAPs. User data and profiles are stored under the `/users/{userId}` path. Profile information (`StudentProfile`, `FacultyProfile`, `AlumniProfile`) will be stored as separate documents, each with a `userId` field referencing the corresponding user document. This enables easy retrieval of profile information based on user ID. The CollabNest portal's posts and comments are structured under `/posts/{postId}` and `/posts/{postId}/comments/{commentId}`, respectively. Posts include an `authorId` field to link back to the user who created the post. Tags are stored in a flat `/tags` collection, and posts contain an array of `tagIds` to establish a many-to-many relationship. The LMS portal's attendance records and class information are stored under `/classes/{classId}/attendances/{attendanceId}` and `/classes/{classId}`, respectively. Classes have a `teacherId` to link to the faculty member teaching the class, with attendance records linked to both the student and the class. The mess portal's meal information and staff consumption data are stored under their respective collections. To optimize queries for user-specific meal bookings, `StudentMealSelection` documents are stored in a top-level `/student_meal_selections` collection. This flat structure allows for efficient queries to retrieve all meal selections for a given user without needing complex, inefficient subcollection queries. This structure provides granular access control and avoids the need for complex `get()` calls in security rules. For Authorization Independence, all subcollections include the necessary authorization context (e.g., `authorId` in `posts`, `teacherId` in `classes`). QAPs are supported through structural segregation (separate collections for different data types) and path-based ownership (e.g., `/users/{userId}/notifications/{notificationId}`). A new subcollection `classes/{classId}/students` is added to manage student enrollments, and an `inviteCode` is added to the `Class` entity to support link-based invitations."
   }
 }
+
+    

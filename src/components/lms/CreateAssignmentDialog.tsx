@@ -32,11 +32,15 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useOutsideClick } from '@/hooks/use-outside-click';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const assignmentSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long'),
   dueDate: z.date({ required_error: 'A due date is required.' }),
   details: z.string().min(10, 'Details must be at least 10 characters long.'),
+  submissionType: z.enum(['text-entry', 'file-upload'], {
+    required_error: 'You need to select a submission type.',
+  }),
 });
 
 type AssignmentFormValues = z.infer<typeof assignmentSchema>;
@@ -79,6 +83,7 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
     defaultValues: {
       title: '',
       details: '',
+      submissionType: 'text-entry',
     },
   });
 
@@ -205,6 +210,40 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="submissionType"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Submission Type</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="text-entry" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Text Entry
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="file-upload" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            File Upload (PDF, DOCS, Image)
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
@@ -220,3 +259,5 @@ export function CreateAssignmentDialog({ classId, isOpen, setIsOpen }: CreateAss
     </Dialog>
   );
 }
+
+    

@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle, Link as LinkIcon, UserPlus, Trash2 } from 'lucide-react';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking } from '@/firebase';
+import { FileText, ClipboardCheck, GraduationCap, AlertTriangle, PlusCircle, Link as LinkIcon, UserPlus, Trash2, Upload } from 'lucide-react';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -16,6 +16,8 @@ import { format } from 'date-fns';
 import { CreateAssignmentDialog } from '@/components/lms/CreateAssignmentDialog';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 interface Course {
   id: string;
@@ -31,6 +33,7 @@ interface Assignment {
   title: string;
   dueDate: string;
   details: string;
+  submissionType: 'text-entry' | 'file-upload';
 }
 
 interface UserGrade {
@@ -58,6 +61,7 @@ export default function CourseDetailPage() {
     const { toast } = useToast();
 
     const [isCreateAssignmentOpen, setCreateAssignmentOpen] = useState(false);
+    const [studentToRemove, setStudentToRemove] = useState<EnrolledStudent | null>(null);
 
     const courseRef = useMemoFirebase(() => (firestore && classId) ? doc(firestore, 'classes', classId) : null, [firestore, classId]);
     const { data: course, isLoading: isLoadingCourse, error: courseError } = useDoc<Course>(courseRef);
@@ -76,6 +80,19 @@ export default function CourseDetailPage() {
     const getGradeForAssignment = (assignmentId: string) => {
         return grades?.find(g => g.assignmentId === assignmentId);
     };
+    
+    const handleRemoveStudent = () => {
+        if (!firestore || !classId || !studentToRemove) return;
+        
+        const studentDocRef = doc(firestore, 'classes', classId, 'students', studentToRemove.id);
+        deleteDocumentNonBlocking(studentDocRef);
+        
+        toast({
+          title: 'Student Removed',
+          description: `${studentToRemove.studentName} has been removed from the class.`,
+        });
+        setStudentToRemove(null); // Close the dialog
+    }
 
     if (isLoadingCourse || isUserLoading) {
         return (
@@ -165,7 +182,11 @@ export default function CourseDetailPage() {
                                          <Badge variant={grade ? 'secondary' : 'outline'}>
                                             {grade ? 'Graded' : 'Pending Submission'}
                                         </Badge>
-                                        <Button variant="secondary" size="sm">Submit</Button>
+                                        {assignment.submissionType === 'file-upload' ? (
+                                            <Button variant="secondary" size="sm"><Upload className="mr-2" /> Upload File</Button>
+                                        ) : (
+                                            <Button variant="secondary" size="sm">Submit Online</Button>
+                                        )}
                                     </CardFooter>
                                 </Card>
                               )
@@ -290,29 +311,54 @@ export default function CourseDetailPage() {
                     <LinkIcon className="mr-2" />
                     Generate & Copy Invite Link
                   </Button>
-                  <div className="mt-6">
-                    <h4 className="font-medium mb-2">Enrolled Students</h4>
-                     {isLoadingEnrolledStudents ? <Skeleton className="h-24" /> : enrolledStudents && enrolledStudents.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                           {enrolledStudents.map(student => (
-                              <TableRow key={student.id}>
-                                <TableCell>{student.studentName}</TableCell>
-                                <TableCell>{student.studentEmail}</TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">No students enrolled yet.</p>
-                    )}
-                  </div>
+                  <AlertDialog open={!!studentToRemove} onOpenChange={(isOpen) => !isOpen && setStudentToRemove(null)}>
+                    <div className="mt-6">
+                      <h4 className="font-medium mb-2">Enrolled Students</h4>
+                      {isLoadingEnrolledStudents ? <Skeleton className="h-24" /> : enrolledStudents && enrolledStudents.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {enrolledStudents.map(student => (
+                                <TableRow key={student.id}>
+                                  <TableCell>{student.studentName}</TableCell>
+                                  <TableCell>{student.studentEmail}</TableCell>
+                                  <TableCell className="text-right">
+                                      <Button variant="ghost" size="icon" onClick={() => setStudentToRemove(student)}>
+                                          <Trash2 className="size-4 text-destructive" />
+                                      </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No students enrolled yet.</p>
+                      )}
+                    </div>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently remove {studentToRemove?.studentName} from this class. They will lose access to all class materials and assignments. This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleRemoveStudent}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Confirm Removal
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
               </CardContent>
             </Card>
           </div>
@@ -332,3 +378,5 @@ export default function CourseDetailPage() {
         </div>
     );
 }
+
+    
