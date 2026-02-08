@@ -54,10 +54,10 @@ export default function CollabNestPage() {
   const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
   
   // Memoize the Firestore query to prevent re-running on every render.
-  // Only query for posts if the user is logged in, to comply with security rules.
+  // With public read rules, we can query for posts even if the user is not logged in.
   const postsQuery = useMemoFirebase(() => 
-    (firestore && user) ? collection(firestore, 'posts') : null
-  , [firestore, user]);
+    (firestore) ? collection(firestore, 'posts') : null
+  , [firestore]);
 
   const { data: postsData, isLoading: isLoadingPosts } = useCollection<Post>(postsQuery);
 
@@ -127,8 +127,8 @@ export default function CollabNestPage() {
     const [newComment, setNewComment] = useState('');
 
     const commentsQuery = useMemoFirebase(
-      () => (firestore && user) ? query(collection(firestore, 'posts', postId, 'comments'), orderBy('timestamp', 'asc')) : null,
-      [firestore, postId, user]
+      () => (firestore) ? query(collection(firestore, 'posts', postId, 'comments'), orderBy('timestamp', 'asc')) : null,
+      [firestore, postId]
     );
     const { data: comments, isLoading: isLoadingComments } = useCollection<Comment>(commentsQuery);
 
@@ -198,7 +198,7 @@ export default function CollabNestPage() {
           ) : (
             !isLoadingComments && (
               <p className="text-sm text-muted-foreground text-center">
-                {user ? 'No comments yet.' : 'Please log in to see comments.'}
+                No comments yet.
               </p>
             )
           )}
@@ -218,13 +218,17 @@ export default function CollabNestPage() {
           {/* Create Post */}
           <Card>
             <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-4">
-              {isUserLoading ? <Skeleton className="size-10 rounded-full" /> : (
+              {isUserLoading ? <Skeleton className="size-10 rounded-full" /> : user ? (
                 <Link href={`/profile/${user?.uid}`}>
                     <Avatar>
                         <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} alt={user?.displayName || 'user'} />
                         <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                 </Link>
+              ) : (
+                 <Avatar>
+                    <AvatarFallback>?</AvatarFallback>
+                </Avatar>
               )}
                 <div className="w-full">
                   {!user && !isUserLoading ? (
@@ -297,7 +301,7 @@ export default function CollabNestPage() {
           </Card>
 
           {/* Posts Feed */}
-          {(isLoadingPosts || isUserLoading) && (
+          {isLoadingPosts && (
              <div className="space-y-6">
                 <Card><CardHeader><Skeleton className="h-24" /></CardHeader></Card>
                 <Card><CardHeader><Skeleton className="h-32" /></CardHeader></Card>
@@ -362,14 +366,10 @@ export default function CollabNestPage() {
               </Card>
             )
           })}
-           {!isLoadingPosts && !isUserLoading && (!posts || posts.length === 0) && (
+           {!isLoadingPosts && (!posts || posts.length === 0) && (
               <Card>
                 <CardContent className="p-8 text-center text-muted-foreground">
-                  {user ? (
-                    <p>No posts yet. Be the first to share something!</p>
-                  ) : (
-                    <p>Please <Link href="/login" className="text-primary underline">log in</Link> to see the feed.</p>
-                  )}
+                  <p>No posts yet. Be the first to share something!</p>
                 </CardContent>
               </Card>
            )}
