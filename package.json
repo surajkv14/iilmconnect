@@ -1,5 +1,6 @@
 {
-  "name": "nextn",
+  "name": "universe",
+  "description": "UniVerse – AI-Powered Smart Campus Platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,6 +16,7 @@
     "@genkit-ai/google-genai": "^1.20.0",
     "@genkit-ai/next": "^1.20.0",
     "@hookform/resolvers": "^4.1.3",
+    "@lottiefiles/react-lottie-player": "^3.5.3",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-avatar": "^1.1.3",
@@ -42,7 +44,9 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
+    "framer-motion": "^11.5.7",
     "genkit": "^1.20.0",
+    "gsap": "^3.12.5",
     "lucide-react": "^0.475.0",
     "next": "15.5.9",
     "patch-package": "^8.0.0",
@@ -51,9 +55,11 @@
     "react-dom": "^19.2.1",
     "react-hook-form": "^7.54.2",
     "recharts": "^2.15.1",
+    "socket.io-client": "^4.7.5",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "zustand": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^20",
