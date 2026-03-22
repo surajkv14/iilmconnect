@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -7,10 +8,11 @@ import {
   LogIn,
   User as UserIcon,
   ChevronDown,
-  Settings,
+  ChefHat,
   History,
   AlertTriangle,
-  ShieldCheck
+  ShieldCheck,
+  Ticket
 } from 'lucide-react';
 import {
   Sidebar,
@@ -51,6 +53,7 @@ export function AppSidebar() {
   const { data: userProfile } = useDoc(userProfileRef);
 
   const isAdmin = userProfile?.userType === 'admin';
+  const isStaff = userProfile?.userType === 'mess_staff';
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -81,29 +84,40 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/smart-mess')} tooltip="Daily Menu">
+            <SidebarMenuButton asChild isActive={pathname === '/smart-mess'} tooltip="Meal Booking">
               <Link href="/smart-mess">
-                <Utensils />
+                <Ticket />
                 <span>Meal Booking</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/history'} tooltip="My History">
+            <SidebarMenuButton asChild isActive={pathname === '/history'} tooltip="Consumption History">
               <Link href="/history">
                 <History />
-                <span>Consumption History</span>
+                <span>Meal History</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/profile')} tooltip="Dietary Info">
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/profile')} tooltip="Preferences">
               <Link href={user ? `/profile/${user.uid}` : '/login'}>
                 <AlertTriangle />
-                <span>Allergies & Preferences</span>
+                <span>Dietary Info</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          {isStaff && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === '/mess-staff'} tooltip="Staff Portal">
+                <Link href="/mess-staff">
+                  <ChefHat className="text-primary" />
+                  <span>Staff Portal</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
 
           {isAdmin && (
             <SidebarMenuItem>
@@ -121,12 +135,9 @@ export function AppSidebar() {
         {isUserLoading ? (
           <div className="flex h-12 w-full items-center gap-3 p-2">
             <Skeleton className="size-8 rounded-full" />
-            <div
-              className="flex flex-col gap-1"
-              style={{ opacity: state === 'expanded' ? 1 : 0, transition: 'opacity 0.2s', width: state === 'expanded' ? '100px' : 0, overflow: 'hidden' }}
-            >
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-3 w-4/5" />
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-32" />
             </div>
           </div>
         ) : user ? (

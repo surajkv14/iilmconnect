@@ -7,37 +7,15 @@
       "type": "object",
       "description": "Represents a student, faculty, or mess staff member.",
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "username": {
-          "type": "string"
-        },
-        "email": {
-          "type": "string",
-          "format": "email"
-        },
-        "displayName": {
-          "type": "string"
-        },
-        "bio": {
-          "type": "string"
-        },
-        "photoURL": {
-          "type": "string"
-        },
-        "userType": {
-          "type": "string",
-          "enum": ["student", "mess_staff", "admin"]
-        },
-        "dietaryPreferences": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "allergies": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "bio": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "userType": { "type": "string", "enum": ["student", "mess_staff", "admin"] },
+        "dietaryPreferences": { "type": "array", "items": { "type": "string" } },
+        "allergies": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["id", "email", "userType"]
     },
@@ -49,7 +27,7 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"] },
+        "type": { "type": "string", "enum": ["breakfast", "lunch", "dinner"] },
         "date": { "type": "string", "format": "date" },
         "items": {
           "type": "array",
@@ -63,7 +41,7 @@
           }
         }
       },
-      "required": ["id", "name", "type", "date"]
+      "required": ["type", "date"]
     },
     "MealBooking": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -73,27 +51,47 @@
       "properties": {
         "id": { "type": "string" },
         "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
         "mealId": { "type": "string" },
         "date": { "type": "string", "format": "date" },
         "mealType": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["booked", "consumed", "cancelled"] }
+        "status": { "type": "string", "enum": ["booked", "ready", "consumed", "cancelled"] },
+        "couponCode": { "type": "string" }
       },
-      "required": ["studentId", "mealId", "status", "date", "mealType"]
+      "required": ["studentId", "status", "date", "mealType", "couponCode"]
     },
-    "WasteData": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "WasteData",
+    "Poll": {
+      "title": "Poll",
       "type": "object",
-      "description": "Daily waste metrics for mess optimization.",
       "properties": {
         "id": { "type": "string" },
-        "date": { "type": "string", "format": "date" },
-        "mealType": { "type": "string" },
-        "wastedKgs": { "type": "number" },
-        "reason": { "type": "string" }
-      },
-      "required": ["date", "mealType", "wastedKgs"]
+        "question": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "votes": { "type": "number" }
+            }
+          }
+        },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Notification": {
+      "title": "Notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean" }
+      }
     }
   },
   "auth": {
@@ -103,35 +101,23 @@
     "structure": [
       {
         "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": { "$ref": "#/backend/entities/User" },
-          "description": "User profiles and mess preferences."
-        }
+        "definition": { "schema": { "$ref": "#/backend/entities/User" } }
       },
       {
         "path": "/menu/{mealId}",
-        "definition": {
-          "entityName": "MessMeal",
-          "schema": { "$ref": "#/backend/entities/MessMeal" },
-          "description": "Daily menu items."
-        }
+        "definition": { "schema": { "$ref": "#/backend/entities/MessMeal" } }
       },
       {
         "path": "/bookings/{bookingId}",
-        "definition": {
-          "entityName": "MealBooking",
-          "schema": { "$ref": "#/backend/entities/MealBooking" },
-          "description": "Student meal reservations."
-        }
+        "definition": { "schema": { "$ref": "#/backend/entities/MealBooking" } }
       },
       {
-        "path": "/waste_logs/{logId}",
-        "definition": {
-          "entityName": "WasteData",
-          "schema": { "$ref": "#/backend/entities/WasteData" },
-          "description": "Tracking food waste for sustainability."
-        }
+        "path": "/polls/{pollId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/Poll" } }
+      },
+      {
+        "path": "/notifications/{notifId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/Notification" } }
       }
     ]
   }
