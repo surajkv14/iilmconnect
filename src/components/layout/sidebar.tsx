@@ -50,10 +50,10 @@ export function AppSidebar() {
   const router = useRouter();
 
   const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
-  const { data: userProfile } = useDoc(userProfileRef);
+  const { data: userProfile } = useDoc<any>(userProfileRef);
 
   const isAdmin = userProfile?.userType === 'admin';
-  const isStaff = userProfile?.userType === 'mess_staff';
+  const isStaff = userProfile?.userType === 'mess_staff' || userProfile?.userType === 'admin';
 
   const handleLogout = async () => {
     await signOut(auth);

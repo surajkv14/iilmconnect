@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Utensils, Bell, Vote, Plus, Trash2, CheckCircle, ChefHat } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Utensils, Bell, Vote, Plus, Trash2, CheckCircle, ChefHat, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, addDays } from 'date-fns';
 
@@ -24,6 +25,9 @@ export default function MessStaffPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
+
   // Menu State
   const [newMealDate, setNewMealDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
   const [newMealType, setNewMealType] = useState<'breakfast' | 'lunch' | 'dinner'>('lunch');
@@ -33,16 +37,16 @@ export default function MessStaffPage() {
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState("");
 
-  const isStaff = user?.email?.includes('staff') || user?.uid === 'staff-uid'; // Logic placeholder
+  const canAccess = userProfile?.userType === 'mess_staff' || userProfile?.userType === 'admin';
 
   // Queries
-  const menuQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'menu'), orderBy('date', 'desc')) : null, [firestore]);
+  const menuQuery = useMemoFirebase(() => canAccess ? query(collection(firestore, 'menu'), orderBy('date', 'desc')) : null, [firestore, canAccess]);
   const { data: menuList, isLoading: isMenuLoading } = useCollection<MessMeal>(menuQuery);
 
-  const bookingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bookings'), orderBy('timestamp', 'desc')) : null, [firestore]);
+  const bookingsQuery = useMemoFirebase(() => canAccess ? query(collection(firestore, 'bookings'), orderBy('timestamp', 'desc')) : null, [firestore, canAccess]);
   const { data: allBookings, isLoading: isBookingsLoading } = useCollection<MealBooking>(bookingsQuery);
 
-  const pollsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'polls'), orderBy('isActive', 'desc')) : null, [firestore]);
+  const pollsQuery = useMemoFirebase(() => canAccess ? query(collection(firestore, 'polls'), orderBy('isActive', 'desc')) : null, [firestore, canAccess]);
   const { data: pollList, isLoading: isPollsLoading } = useCollection<Poll>(pollsQuery);
 
   const handleAddMenu = () => {
@@ -91,13 +95,30 @@ export default function MessStaffPage() {
     toast({ title: "Notification Sent", description: `Student ${booking.studentName} has been alerted.` });
   };
 
-  if (isUserLoading) return <div className="p-8"><Skeleton className="h-64 w-full" /></div>;
+  if (isUserLoading || isProfileLoading) {
+    return <div className="p-8 space-y-4"><Skeleton className="h-12 w-1/4" /><Skeleton className="h-64 w-full" /></div>;
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Alert variant="destructive" className="max-w-md">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Access Denied</AlertTitle>
+          <AlertDescription>Only Mess Staff and Administrators can access the Operational Portal.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Staff Portal</h1>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">Staff Portal</h1>
+            {userProfile?.userType === 'admin' && <Badge variant="secondary">Admin Access</Badge>}
+          </div>
           <p className="text-muted-foreground">Manage operations, live orders, and student engagement.</p>
         </div>
         <ChefHat className="size-10 text-primary opacity-20" />
@@ -171,7 +192,7 @@ export default function MessStaffPage() {
                 <div className="space-y-2">
                   <label className="text-xs font-medium">Meal Type</label>
                   <select 
-                    className="w-full rounded-md border p-2 text-sm"
+                    className="w-full rounded-md border p-2 text-sm bg-background"
                     value={newMealType}
                     onChange={e => setNewMealType(e.target.value as any)}
                   >
