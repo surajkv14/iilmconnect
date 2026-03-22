@@ -1,629 +1,101 @@
+
 {
   "entities": {
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user in the IILM Connect application.",
+      "description": "Represents a student or mess staff member.",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
+          "type": "string"
         },
         "username": {
-          "type": "string",
-          "description": "User's unique username."
+          "type": "string"
         },
         "email": {
           "type": "string",
-          "description": "User's email address (university domain).",
           "format": "email"
         },
-        "firstName": {
-          "type": "string",
-          "description": "User's first name."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "User's last name."
-        },
         "displayName": {
-          "type": "string",
-          "description": "User's display name."
+          "type": "string"
         },
         "bio": {
-          "type": "string",
-          "description": "A short user bio."
+          "type": "string"
         },
         "photoURL": {
-          "type": "string",
-          "description": "URL of the user's profile picture."
+          "type": "string"
         },
         "userType": {
           "type": "string",
-          "description": "Type of user (student, faculty, alumni, admin)."
-        }
-      },
-      "required": [
-        "id",
-        "username",
-        "email",
-        "userType"
-      ]
-    },
-    "StudentProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "StudentProfile",
-      "type": "object",
-      "description": "Represents a student profile in the CollabNest portal.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the StudentProfile entity."
+          "enum": ["student", "mess_staff", "admin"]
         },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:1 StudentProfile)"
-        },
-        "major": {
-          "type": "string",
-          "description": "Student's major."
-        },
-        "batch": {
-          "type": "string",
-          "description": "Student's batch."
-        },
-        "interests": {
+        "dietaryPreferences": {
           "type": "array",
-          "description": "Student's areas of interest.",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "major",
-        "batch"
-      ]
-    },
-    "FacultyProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "FacultyProfile",
-      "type": "object",
-      "description": "Represents a faculty profile in the CollabNest portal.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the FacultyProfile entity."
+          "items": { "type": "string" }
         },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:1 FacultyProfile)"
-        },
-        "department": {
-          "type": "string",
-          "description": "Faculty's department."
-        },
-        "expertise": {
+        "allergies": {
           "type": "array",
-          "description": "Faculty's areas of expertise.",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         }
       },
-      "required": [
-        "id",
-        "userId",
-        "department"
-      ]
-    },
-    "AlumniProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AlumniProfile",
-      "type": "object",
-      "description": "Represents an alumni profile in the CollabNest portal.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the AlumniProfile entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:1 AlumniProfile)"
-        },
-        "graduationYear": {
-          "type": "number",
-          "description": "Alumni's graduation year."
-        },
-        "currentJob": {
-          "type": "string",
-          "description": "Alumni's current job."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "graduationYear",
-        "currentJob"
-      ]
-    },
-    "Post": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Post",
-      "type": "object",
-      "description": "Represents a post in the CollabNest portal.",
-      "properties": {
-        "authorId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Post)"
-        },
-        "authorName": {
-          "type": "string",
-          "description": "Denormalized author's display name."
-        },
-        "authorAvatar": {
-          "type": "string",
-          "description": "Denormalized author's avatar URL."
-        },
-        "content": {
-          "type": "string",
-          "description": "Content of the post."
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp of the post.",
-          "format": "date-time"
-        },
-        "likedBy": {
-          "type": "array",
-          "description": "Array of user IDs who liked the post.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "image": {
-          "type": "string",
-          "description": "URL of an image attached to the post."
-        },
-        "imageHint": {
-          "type": "string",
-          "description": "A hint for AI image search, e.g., 'nature sunset'."
-        }
-      },
-      "required": [
-        "authorId",
-        "authorName",
-        "authorAvatar",
-        "content"
-      ]
-    },
-    "Comment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Comment",
-      "type": "object",
-      "description": "Represents a comment on a post.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Comment entity."
-        },
-        "postId": {
-          "type": "string",
-          "description": "Reference to Post. (Relationship: Post 1:N Comment)"
-        },
-        "authorId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Comment)"
-        },
-        "authorName": {
-          "type": "string",
-          "description": "Denormalized author's display name."
-        },
-        "authorAvatar": {
-          "type": "string",
-          "description": "Denormalized author's avatar URL."
-        },
-        "content": {
-          "type": "string",
-          "description": "Content of the comment."
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp of the comment.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "postId",
-        "authorId",
-        "authorName",
-        "authorAvatar",
-        "content",
-        "timestamp"
-      ]
-    },
-    "Tag": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Tag",
-      "type": "object",
-      "description": "Represents a tag for posts.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Tag entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the tag."
-        }
-      },
-      "required": [
-        "id",
-        "name"
-      ]
-    },
-    "Attendance": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Attendance",
-      "type": "object",
-      "description": "Represents attendance record for a student in a specific class.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Attendance entity."
-        },
-        "studentId": {
-          "type": "string",
-          "description": "Reference to User (Student). (Relationship: User 1:N Attendance)"
-        },
-        "classId": {
-          "type": "string",
-          "description": "Reference to Class. (Relationship: Class 1:N Attendance)"
-        },
-        "date": {
-          "type": "string",
-          "description": "Date of the attendance record.",
-          "format": "date-time"
-        },
-        "isPresent": {
-          "type": "boolean",
-          "description": "Indicates if the student was present."
-        }
-      },
-      "required": [
-        "id",
-        "studentId",
-        "classId",
-        "date",
-        "isPresent"
-      ]
-    },
-    "Class": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Class",
-      "type": "object",
-      "description": "Represents a class or course.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Class entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the class."
-        },
-        "semester": {
-          "type": "string",
-          "description": "The semester the class is offered, e.g., 'Fall 2024'."
-        },
-        "instructor": {
-          "type": "string",
-          "description": "Name of the instructor."
-        },
-        "teacherId": {
-          "type": "string",
-          "description": "Reference to User (Faculty). (Relationship: User 1:N Class)"
-        },
-        "inviteCode": {
-          "type": "string",
-          "description": "A unique code to invite students to the class."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "semester",
-        "instructor",
-        "teacherId"
-      ]
-    },
-    "Assignment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Assignment",
-      "type": "object",
-      "description": "Represents an assignment for a class.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique ID for the assignment."
-        },
-        "classId": {
-          "type": "string",
-          "description": "Reference to the Class."
-        },
-        "title": {
-          "type": "string",
-          "description": "Title of the assignment."
-        },
-        "dueDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Due date for the assignment."
-        },
-        "details": {
-          "type": "string",
-          "description": "Detailed description of the assignment, can include links."
-        },
-        "submissionType": {
-          "type": "string",
-          "description": "The required submission type for the assignment.",
-          "enum": [
-            "text-entry",
-            "file-upload"
-          ]
-        }
-      },
-      "required": [
-        "id",
-        "classId",
-        "title",
-        "dueDate",
-        "details",
-        "submissionType"
-      ]
-    },
-    "UserGrade": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserGrade",
-      "type": "object",
-      "description": "Represents a student's grade for a specific assignment.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique ID for the grade entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User (student)."
-        },
-        "classId": {
-          "type": "string",
-          "description": "Reference to the Class."
-        },
-        "assignmentId": {
-          "type": "string",
-          "description": "Reference to the Assignment."
-        },
-        "score": {
-          "type": "number",
-          "description": "The student's score."
-        },
-        "grade": {
-          "type": "string",
-          "description": "The letter grade, e.g., 'A+'."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "classId",
-        "assignmentId",
-        "score"
-      ]
+      "required": ["id", "email", "userType"]
     },
     "MessMeal": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MessMeal",
       "type": "object",
-      "description": "Represents a meal offered in the mess.",
+      "description": "Represents a meal item or menu for a specific day/type.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the MessMeal entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the meal item."
-        },
-        "type": {
-          "type": "string",
-          "description": "Type of meal (breakfast, lunch, dinner)."
-        },
-        "date": {
-          "type": "string",
-          "description": "Date when the meal is offered.",
-          "format": "date-time"
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"] },
+        "date": { "type": "string", "format": "date" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "category": { "type": "string", "enum": ["Veg", "Non-Veg", "Vegan"] },
+              "calories": { "type": "number" }
+            }
+          }
         }
       },
-      "required": [
-        "id",
-        "name",
-        "type",
-        "date"
-      ]
+      "required": ["id", "name", "type", "date"]
     },
-    "StudentMealSelection": {
+    "MealBooking": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "StudentMealSelection",
+      "title": "MealBooking",
       "type": "object",
-      "description": "Represents a student's selection of meal portions.",
+      "description": "A student's commitment to eat a specific meal.",
       "properties": {
-        "studentId": {
-          "type": "string",
-          "description": "Reference to User (Student). (Relationship: User 1:N StudentMealSelection)"
-        },
-        "mealId": {
-          "type": "string",
-          "description": "Reference to MessMeal. (Relationship: MessMeal 1:N StudentMealSelection)"
-        },
-        "portion": {
-          "type": "number",
-          "description": "Portion size selected by the student."
-        }
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "mealId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["booked", "consumed", "cancelled"] }
       },
-      "required": [
-        "studentId",
-        "mealId",
-        "portion"
-      ]
+      "required": ["studentId", "mealId", "status"]
     },
-    "MessStaffConsumptionData": {
+    "WasteData": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MessStaffConsumptionData",
+      "title": "WasteData",
       "type": "object",
-      "description": "Represents the data of prepared and consumed quantities of each meal item.",
+      "description": "Daily waste metrics for mess optimization.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the MessStaffConsumptionData entity."
-        },
-        "mealId": {
-          "type": "string",
-          "description": "Reference to MessMeal. (Relationship: MessMeal 1:N MessStaffConsumptionData)"
-        },
-        "preparedQuantity": {
-          "type": "number",
-          "description": "Quantity of the meal item prepared by the staff."
-        },
-        "consumedQuantity": {
-          "type": "number",
-          "description": "Quantity of the meal item consumed by students."
-        },
-        "shiftDate": {
-          "type": "string",
-          "description": "Date of mess staff shift.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "mealType": { "type": "string" },
+        "wastedKgs": { "type": "number" },
+        "reason": { "type": "string" }
       },
-      "required": [
-        "id",
-        "mealId",
-        "preparedQuantity",
-        "consumedQuantity",
-        "shiftDate"
-      ]
-    },
-    "Notification": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Notification",
-      "type": "object",
-      "description": "Represents a notification for a user. Can be a simple message or an actionable request.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Notification entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the user receiving the notification."
-        },
-        "message": {
-          "type": "string",
-          "description": "The content of the notification message."
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp of the notification.",
-          "format": "date-time"
-        },
-        "isRead": {
-          "type": "boolean",
-          "description": "Indicates if the notification has been read."
-        },
-        "type": {
-          "type": "string",
-          "description": "Type of notification.",
-          "enum": [
-            "message",
-            "join_request"
-          ]
-        },
-        "status": {
-          "type": "string",
-          "description": "Status for actionable notifications like join requests.",
-          "enum": [
-            "pending",
-            "approved",
-            "rejected"
-          ]
-        },
-        "requesterId": {
-          "type": "string",
-          "description": "ID of the user who initiated the request."
-        },
-        "requesterName": {
-          "type": "string",
-          "description": "Display name of the user who initiated the request."
-        },
-        "requesterEmail": {
-          "type": "string",
-          "description": "Email of the user who initiated the request."
-        },
-        "classId": {
-          "type": "string",
-          "description": "ID of the class related to the notification."
-        },
-        "className": {
-          "type": "string",
-          "description": "Name of the class related to the notification."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "message",
-        "timestamp",
-        "isRead",
-        "type"
-      ]
-    },
-     "EnrolledStudent": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "EnrolledStudent",
-      "type": "object",
-      "description": "Represents a student enrolled in a class.",
-      "properties": {
-        "studentId": {
-          "type": "string"
-        },
-        "studentName": {
-          "type": "string"
-        },
-        "studentEmail": {
-          "type": "string"
-        },
-        "enrollmentDate": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "studentId",
-        "studentName",
-        "studentEmail",
-        "enrollmentDate"
-      ]
+      "required": ["date", "mealType", "wastedKgs"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
@@ -631,287 +103,35 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user information. Each document represents a user.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "User profiles and mess preferences."
         }
       },
       {
-        "path": "/users/{userId}/student_profile",
-        "definition": {
-          "entityName": "StudentProfile",
-          "schema": {
-            "$ref": "#/backend/entities/StudentProfile"
-          },
-          "description": "Stores student profile information.  Each document contains student-specific details.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (student)."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/faculty_profile",
-        "definition": {
-          "entityName": "FacultyProfile",
-          "schema": {
-            "$ref": "#/backend/entities/FacultyProfile"
-          },
-          "description": "Stores faculty profile information. Each document contains faculty-specific details.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (faculty)."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/alumni_profile",
-        "definition": {
-          "entityName": "AlumniProfile",
-          "schema": {
-            "$ref": "#/backend/entities/AlumniProfile"
-          },
-          "description": "Stores alumni profile information. Each document contains alumni-specific details.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (alumni)."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/grades/{gradeId}",
-        "definition": {
-          "entityName": "UserGrade",
-          "schema": {
-            "$ref": "#/backend/entities/UserGrade"
-          },
-          "description": "Stores grades for a specific user.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID for the user."
-            },
-            {
-              "name": "gradeId",
-              "description": "The unique ID for the grade."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/posts/{postId}",
-        "definition": {
-          "entityName": "Post",
-          "schema": {
-            "$ref": "#/backend/entities/Post"
-          },
-          "description": "Stores posts in the CollabNest portal. Includes 'authorId' for authorization.",
-          "params": [
-            {
-              "name": "postId",
-              "description": "The unique identifier for the post."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/posts/{postId}/comments/{commentId}",
-        "definition": {
-          "entityName": "Comment",
-          "schema": {
-            "$ref": "#/backend/entities/Comment"
-          },
-          "description": "Stores comments for a specific post. Includes 'authorId' for authorization.",
-          "params": [
-            {
-              "name": "postId",
-              "description": "The unique identifier for the post."
-            },
-            {
-              "name": "commentId",
-              "description": "The unique identifier for the comment."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/tags/{tagId}",
-        "definition": {
-          "entityName": "Tag",
-          "schema": {
-            "$ref": "#/backend/entities/Tag"
-          },
-          "description": "Stores tags for posts.",
-          "params": [
-            {
-              "name": "tagId",
-              "description": "The unique identifier for the tag."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/classes/{classId}",
-        "definition": {
-          "entityName": "Class",
-          "schema": {
-            "$ref": "#/backend/entities/Class"
-          },
-          "description": "Stores class information. Includes 'teacherId' for authorization.",
-          "params": [
-            {
-              "name": "classId",
-              "description": "The unique identifier for the class."
-            }
-          ]
-        }
-      },
-       {
-        "path": "/classes/{classId}/students/{studentId}",
-        "definition": {
-          "entityName": "EnrolledStudent",
-          "schema": {
-            "$ref": "#/backend/entities/EnrolledStudent"
-          },
-          "description": "Stores students enrolled in a specific class.",
-          "params": [
-            {
-              "name": "classId",
-              "description": "The unique identifier for the class."
-            },
-            {
-              "name": "studentId",
-              "description": "The unique identifier for the student (user ID)."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/classes/{classId}/assignments/{assignmentId}",
-        "definition": {
-          "entityName": "Assignment",
-          "schema": {
-            "$ref": "#/backend/entities/Assignment"
-          },
-          "description": "Stores assignments for a specific class.",
-          "params": [
-            {
-              "name": "classId",
-              "description": "The unique ID for the class."
-            },
-            {
-              "name": "assignmentId",
-              "description": "The unique ID for the assignment."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/classes/{classId}/attendances/{attendanceId}",
-        "definition": {
-          "entityName": "Attendance",
-          "schema": {
-            "$ref": "#/backend/entities/Attendance"
-          },
-          "description": "Stores attendance records for a specific class.",
-          "params": [
-            {
-              "name": "classId",
-              "description": "The unique identifier for the class."
-            },
-            {
-              "name": "attendanceId",
-              "description": "The unique identifier for the attendance record."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/mess_meals/{mealId}",
+        "path": "/menu/{mealId}",
         "definition": {
           "entityName": "MessMeal",
-          "schema": {
-            "$ref": "#/backend/entities/MessMeal"
-          },
-          "description": "Stores mess meal information.",
-          "params": [
-            {
-              "name": "mealId",
-              "description": "The unique identifier for the mess meal."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/MessMeal" },
+          "description": "Daily menu items."
         }
       },
       {
-        "path": "/student_meal_selections/{selectionId}",
+        "path": "/bookings/{bookingId}",
         "definition": {
-          "entityName": "StudentMealSelection",
-          "schema": {
-            "$ref": "#/backend/entities/StudentMealSelection"
-          },
-          "description": "Stores a student's selection of a meal. Each document represents one booking.",
-          "params": [
-            {
-              "name": "selectionId",
-              "description": "The unique identifier for the meal selection."
-            }
-          ]
+          "entityName": "MealBooking",
+          "schema": { "$ref": "#/backend/entities/MealBooking" },
+          "description": "Student meal reservations."
         }
       },
       {
-        "path": "/mess_meals/{mealId}/staff_consumption_data/{consumptionDataId}",
+        "path": "/waste_logs/{logId}",
         "definition": {
-          "entityName": "MessStaffConsumptionData",
-          "schema": {
-            "$ref": "#/backend/entities/MessStaffConsumptionData"
-          },
-          "description": "Stores mess staff consumption data for a specific meal.",
-          "params": [
-            {
-              "name": "mealId",
-              "description": "The unique identifier for the mess meal."
-            },
-            {
-              "name": "consumptionDataId",
-              "description": "The unique identifier for the mess staff consumption data."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/notifications/{notificationId}",
-        "definition": {
-          "entityName": "Notification",
-          "schema": {
-            "$ref": "#/backend/entities/Notification"
-          },
-          "description": "Stores notifications for a specific user.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "notificationId",
-              "description": "The unique identifier for the notification."
-            }
-          ]
+          "entityName": "WasteData",
+          "schema": { "$ref": "#/backend/entities/WasteData" },
+          "description": "Tracking food waste for sustainability."
         }
       }
     ],
-    "reasoning": "This Firestore structure is designed to support the IILM Connect application, encompassing LMS, CollabNest, and Mess portals. It prioritizes Authorization Independence and QAPs. User data and profiles are stored under the `/users/{userId}` path. Profile information (`StudentProfile`, `FacultyProfile`, `AlumniProfile`) will be stored as separate documents, each with a `userId` field referencing the corresponding user document. This enables easy retrieval of profile information based on user ID. The CollabNest portal's posts and comments are structured under `/posts/{postId}` and `/posts/{postId}/comments/{commentId}`, respectively. Posts include an `authorId` field to link back to the user who created the post. Tags are stored in a flat `/tags` collection, and posts contain an array of `tagIds` to establish a many-to-many relationship. The LMS portal's attendance records and class information are stored under `/classes/{classId}/attendances/{attendanceId}` and `/classes/{classId}`, respectively. Classes have a `teacherId` to link to the faculty member teaching the class, with attendance records linked to both the student and the class. The mess portal's meal information and staff consumption data are stored under their respective collections. To optimize queries for user-specific meal bookings, `StudentMealSelection` documents are stored in a top-level `/student_meal_selections` collection. This flat structure allows for efficient queries to retrieve all meal selections for a given user without needing complex, inefficient subcollection queries. This structure provides granular access control and avoids the need for complex `get()` calls in security rules. For Authorization Independence, all subcollections include the necessary authorization context (e.g., `authorId` in `posts`, `teacherId` in `classes`). QAPs are supported through structural segregation (separate collections for different data types) and path-based ownership (e.g., `/users/{userId}/notifications/{notificationId}`). A new subcollection `classes/{classId}/students` is added to manage student enrollments, and an `inviteCode` is added to the `Class` entity to support link-based invitations."
+    "reasoning": "Refocused exclusively on Smart Mess operations. Removed all LMS and social entities to reduce overhead and focus the app's purpose on nutritional management and waste reduction."
   }
 }

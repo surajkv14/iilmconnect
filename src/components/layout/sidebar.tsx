@@ -1,15 +1,16 @@
+
 'use client';
 
 import {
-  BookCopy,
   LayoutDashboard,
-  Shield,
-  Users,
   Utensils,
-  ChevronDown,
   LogOut,
   LogIn,
   User as UserIcon,
+  ChevronDown,
+  Settings,
+  History,
+  AlertTriangle
 } from 'lucide-react';
 import {
   Sidebar,
@@ -52,22 +53,13 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2">
-          <svg
-            className="size-8 text-primary"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 256 256"
-          >
-            <path
-              fill="currentColor"
-              d="M228 128a12 12 0 0 1-12 12h-24.57a48.16 48.16 0 0 1-4.21 16.59a48 48 0 0 1-38.63 27.41H128a12 12 0 0 1 0-24h20.59a24 24 0 0 0 23.58-20.1a24.23 24.23 0 0 0-1.25-11.49a12 12 0 1 1 22.49-8.74A48.21 48.21 0 0 1 188.57 128H216a12 12 0 0 1 12 12Zm-76.23-73.66a12 12 0 0 0-13.06-4.94L38.46 82.34A12 12 0 0 0 31.7 94.66l98.24 39.3a12 12 0 0 0 13.06-4.94l56.76-113.54a12 12 0 0 0-4.94-13.06ZM157.41 128l-41.1-16.44l-41.1 16.44l41.1 16.44Z"
-            />
-          </svg>
+        <div className="flex items-center gap-2 p-2">
+          <Utensils className="size-8 text-primary" />
           <span
             className="text-xl font-semibold text-primary"
             style={{ opacity: state === 'expanded' ? 1 : 0, transition: 'opacity 0.2s' }}
           >
-            IILM University
+            Smart Mess
           </span>
         </div>
       </SidebarHeader>
@@ -82,34 +74,26 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/lms')} tooltip="LMS">
-              <Link href="/lms">
-                <BookCopy />
-                <span>LMS Portal</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/collabnest')} tooltip="CollabNest">
-              <Link href="/collabnest">
-                <Users />
-                <span>CollabNest</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/smart-mess')} tooltip="Mess">
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/smart-mess')} tooltip="Daily Menu">
               <Link href="/smart-mess">
                 <Utensils />
-                <span>Smart Mess</span>
+                <span>Meal Booking</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/admin')} tooltip="Admin">
-              <Link href="/admin">
-                <Shield />
-                <span>Admin Panel</span>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/history')} tooltip="My History">
+              <Link href="/smart-mess">
+                <History />
+                <span>Consumption History</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/preferences')} tooltip="Dietary Info">
+              <Link href="/profile">
+                <AlertTriangle />
+                <span>Allergies & Preferences</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -158,7 +142,10 @@ export function AppSidebar() {
                     <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
