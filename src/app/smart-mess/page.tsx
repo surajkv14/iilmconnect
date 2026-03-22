@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -6,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UtensilsCrossed, Leaf, Wheat, Nut } from 'lucide-react';
+import { UtensilsCrossed, Leaf } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -178,7 +177,7 @@ export default function SmartMessPage() {
         <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold tracking-tight">Meal Booking</h1>
             <Button asChild variant="outline">
-                <Link href={`/profile/${user?.uid}`}>
+                <Link href={user ? `/profile/${user.uid}` : '/login'}>
                     <Leaf className="mr-2 size-4 text-green-500" /> My Preferences
                 </Link>
             </Button>

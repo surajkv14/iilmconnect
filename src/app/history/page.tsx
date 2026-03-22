@@ -1,14 +1,14 @@
-
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { History, Utensils } from 'lucide-react';
 import { format } from 'date-fns';
+import { useMemo } from 'react';
 
 interface MealBooking {
   id: string;
@@ -22,16 +22,28 @@ export default function HistoryPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  // Simple query without orderBy to avoid composite index requirement
   const historyQuery = useMemoFirebase(() => 
     (user && firestore) ? query(
       collection(firestore, 'bookings'), 
-      where('studentId', '==', user.uid),
-      orderBy('date', 'desc')
+      where('studentId', '==', user.uid)
     ) : null,
     [user, firestore]
   );
 
-  const { data: history, isLoading: isLoadingHistory } = useCollection<MealBooking>(historyQuery);
+  const { data: rawHistory, isLoading: isLoadingHistory } = useCollection<MealBooking>(historyQuery);
+
+  // Sort history client-side by date and timestamp descending
+  const history = useMemo(() => {
+    if (!rawHistory) return null;
+    return [...rawHistory].sort((a, b) => {
+      // First sort by date
+      const dateCompare = b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
+      // Then sort by timestamp for the same day
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
+  }, [rawHistory]);
 
   if (isUserLoading || isLoadingHistory) {
     return (
@@ -69,7 +81,7 @@ export default function HistoryPage() {
           {!history || history.length === 0 ? (
             <div className="text-center py-12">
               <Utensils className="size-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-              <p className="text-muted-foreground">No meal history found yet.</p>
+              <p className="text-muted-foreground">No meal history found yet. Try booking a meal in the Reservation Desk.</p>
             </div>
           ) : (
             <Table>
