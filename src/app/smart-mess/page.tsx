@@ -1,12 +1,23 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UtensilsCrossed, Leaf, Ticket, Vote, CheckCircle2, Clock, Info } from 'lucide-react';
+import { 
+  UtensilsCrossed, 
+  Leaf, 
+  Ticket, 
+  Vote, 
+  CheckCircle2, 
+  Clock, 
+  Info, 
+  Scan, 
+  Camera,
+  X
+} from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +25,9 @@ import Link from 'next/link';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useRouter } from 'next/navigation';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface MealItem { name: string; category: 'Veg' | 'Non-Veg' | 'Vegan'; calories: number; }
 interface MessMeal { id: string; date: string; type: string; items: MealItem[]; }
@@ -53,9 +67,12 @@ const MealCard = ({ title, items }: { title: string, items: MealItem[] }) => (
 
 export default function SmartMessPage() {
   const [activeTab, setActiveTab] = useState<'tomorrow' | 'dayAfter'>('tomorrow');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   const dates = useMemo(() => ({
     tomorrow: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
@@ -92,6 +109,52 @@ export default function SmartMessPage() {
     };
   }, [menuItems, activeTab, dates]);
 
+  useEffect(() => {
+    if (isScannerOpen) {
+      // Small delay to ensure the container is rendered
+      const timer = setTimeout(() => {
+        const scanner = new Html5QrcodeScanner(
+          "qr-reader",
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          /* verbose= */ false
+        );
+        
+        scanner.render(onScanSuccess, onScanFailure);
+        scannerRef.current = scanner;
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        if (scannerRef.current) {
+          scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+        }
+      };
+    }
+  }, [isScannerOpen]);
+
+  function onScanSuccess(decodedText: string) {
+    // If scanning from the app, it might be a relative or absolute URL
+    if (decodedText.includes('/scan-meal')) {
+      if (scannerRef.current) {
+        scannerRef.current.clear().then(() => {
+          setIsScannerOpen(false);
+          // Extract path or just navigate to the known endpoint
+          router.push('/scan-meal');
+        });
+      }
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid QR Code',
+        description: 'Please scan the official QR code at the mess counter.',
+      });
+    }
+  }
+
+  function onScanFailure(error: any) {
+    // Failures are common while searching for a QR code, so we don't need to log them heavily
+  }
+
   const handleBookingToggle = (mealType: 'breakfast' | 'lunch' | 'dinner') => {
     if (!user || !firestore) return;
 
@@ -101,7 +164,7 @@ export default function SmartMessPage() {
 
     if (existingBooking) {
       if (existingBooking.status !== 'booked') {
-        toast({ variant: 'destructive', title: 'Action Denied', description: 'This meal is already being prepared.' });
+        toast({ variant: 'destructive', title: 'Action Denied', description: 'This meal is already being prepared or consumed.' });
         return;
       }
       deleteDocumentNonBlocking(doc(firestore, 'bookings', existingBooking.id));
@@ -128,7 +191,6 @@ export default function SmartMessPage() {
     const poll = activePolls.find(p => p.id === pollId);
     if (!poll) return;
 
-    // Restriction: Only one vote per user
     if (poll.voters?.includes(user.uid)) {
       toast({ variant: 'destructive', title: 'Already Voted', description: 'You have already participated in this poll.' });
       return;
@@ -157,14 +219,36 @@ export default function SmartMessPage() {
           <h1 className="text-3xl font-bold tracking-tight">Reservation Desk</h1>
           <p className="text-muted-foreground">Book ahead to reduce campus food waste.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+            <DialogTrigger asChild>
+              <Button variant="default" className="gap-2 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
+                <Scan className="size-4" /> Scan QR to Avail
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Verify Meal Collection</DialogTitle>
+                <DialogDescription>
+                  Scan the QR code displayed at the mess counter to confirm your pickup.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center justify-center p-4">
+                <div id="qr-reader" className="w-full max-w-sm rounded-lg overflow-hidden border-2 border-primary/20 shadow-inner"></div>
+                <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground italic">
+                  <Camera className="size-3" /> Align the QR code within the frame
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Button asChild variant="outline" size="sm" className="h-9 px-4">
             <Link href="/history">
               <Ticket className="mr-2 size-4" /> My Coupons
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="h-9 px-4">
-            <Link href={`/profile/${user?.uid}`}>
+            <Link href={user ? `/profile/${user.uid}` : '/login'}>
               <Leaf className="mr-2 size-4 text-green-500" /> Preferences
             </Link>
           </Button>
