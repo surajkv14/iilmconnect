@@ -30,7 +30,7 @@ interface UserDoc {
   id: string;
   email: string;
   displayName?: string;
-  userType: 'student' | 'faculty' | 'mess_staff' | 'admin';
+  userType: 'student' | 'mess_staff' | 'admin';
 }
 
 interface MealBooking {
@@ -119,7 +119,7 @@ export default function AdminPage() {
           <Card>
             <CardHeader>
               <CardTitle>Campus Users</CardTitle>
-              <CardDescription>Update user roles for students, faculty, and mess personnel.</CardDescription>
+              <CardDescription>Update user roles for students and mess personnel.</CardDescription>
             </CardHeader>
             <CardContent>
               {areUsersLoading ? <Skeleton className="h-48 w-full" /> : (
@@ -153,7 +153,6 @@ export default function AdminPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="student">Student</SelectItem>
-                              <SelectItem value="faculty">Faculty</SelectItem>
                               <SelectItem value="mess_staff">Mess Staff</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
                             </SelectContent>

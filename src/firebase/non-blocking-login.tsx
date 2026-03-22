@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Auth,
@@ -32,11 +33,9 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
       const firestore = getFirestore(authInstance.app);
       const userDocRef = doc(firestore, 'users', user.uid);
 
-      let userType: 'admin' | 'faculty' | 'student' = 'student';
+      let userType: 'admin' | 'student' = 'student';
       if (email === 'admin@iilm.edu') {
         userType = 'admin';
-      } else if (email === 'testfaculty@iilm.edu') {
-        userType = 'faculty';
       }
       
       const username = email.split('@')[0];
@@ -76,11 +75,9 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
       const docSnap = await getDoc(userDocRef);
       if (!docSnap.exists()) {
         // Doc doesn't exist, create it. This handles users created before this fix.
-        let userType: 'admin' | 'faculty' | 'student' = 'student';
+        let userType: 'admin' | 'student' = 'student';
         if (email === 'admin@iilm.edu') {
             userType = 'admin';
-        } else if (email === 'testfaculty@iilm.edu') {
-            userType = 'faculty';
         }
 
         const username = user.displayName || email.split('@')[0];

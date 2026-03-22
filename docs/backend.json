@@ -28,7 +28,7 @@
         },
         "userType": {
           "type": "string",
-          "enum": ["student", "faculty", "mess_staff", "admin"]
+          "enum": ["student", "mess_staff", "admin"]
         },
         "dietaryPreferences": {
           "type": "array",
