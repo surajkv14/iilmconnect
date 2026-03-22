@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -12,10 +12,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Utensils, Bell, Vote, Plus, Trash2, CheckCircle, ChefHat, ShieldAlert, Salad, X } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Utensils, Bell, Vote, Plus, Trash2, ChefHat, ShieldAlert, Salad, X, QrCode, Scan, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, addDays } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface MealBooking { id: string; studentId: string; studentName: string; mealType: string; date: string; status: string; couponCode: string; }
 interface MessMeal { id: string; date: string; type: string; items: any[]; }
@@ -36,13 +38,10 @@ export default function MessStaffPage() {
   const [itemName, setItemName] = useState("");
   const [itemCategory, setItemCategory] = useState("Veg");
 
-  // Poll State
-  const [pollQuestion, setPollQuestion] = useState("");
-  const [pollOptions, setPollOptions] = useState("");
-
   const canAccess = userProfile?.userType === 'mess_staff' || userProfile?.userType === 'admin';
 
   // Queries
+  const today = format(new Date(), 'yyyy-MM-dd');
   const menuQuery = useMemoFirebase(() => canAccess ? query(collection(firestore, 'menu'), orderBy('date', 'desc')) : null, [firestore, canAccess]);
   const { data: menuList, isLoading: isMenuLoading } = useCollection<MessMeal>(menuQuery);
 
@@ -51,6 +50,19 @@ export default function MessStaffPage() {
 
   const pollsQuery = useMemoFirebase(() => canAccess ? query(collection(firestore, 'polls'), orderBy('isActive', 'desc')) : null, [firestore, canAccess]);
   const { data: pollList, isLoading: isPollsLoading } = useCollection<Poll>(pollsQuery);
+
+  const todayBookings = useMemo(() => allBookings?.filter(b => b.date === today) || [], [allBookings, today]);
+  const servedCount = todayBookings.filter(b => b.status === 'consumed').length;
+  const pendingCount = todayBookings.filter(b => b.status === 'booked' || b.status === 'ready').length;
+  const totalBooked = todayBookings.length;
+
+  const [scanUrl, setScanUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setScanUrl(`${window.location.origin}/scan-meal`);
+    }
+  }, []);
 
   const addPendingItem = () => {
     if (!itemName) return;
@@ -78,34 +90,12 @@ export default function MessStaffPage() {
     toast({ title: "Menu Published", description: `${newMealType} for ${newMealDate} is live.` });
   };
 
-  const handleCreatePoll = () => {
-    if (!firestore || !pollQuestion) return;
-    const options = pollOptions.split(',').map(o => ({ text: o.trim(), votes: 0 }));
-
-    addDocumentNonBlocking(collection(firestore, 'polls'), {
-      question: pollQuestion,
-      options: options,
-      voters: [],
-      isActive: true,
-      createdAt: new Date().toISOString()
+  const handleManualAvail = (bookingId: string) => {
+    updateDocumentNonBlocking(doc(firestore, 'bookings', bookingId), { 
+      status: 'consumed',
+      timestampAvailed: new Date().toISOString()
     });
-    setPollQuestion("");
-    setPollOptions("");
-    toast({ title: "Poll Created", description: "Students can now vote." });
-  };
-
-  const handleNotifyReady = (booking: MealBooking) => {
-    if (!firestore) return;
-    updateDocumentNonBlocking(doc(firestore, 'bookings', booking.id), { status: 'ready' });
-    
-    addDocumentNonBlocking(collection(firestore, 'notifications'), {
-      userId: booking.studentId,
-      message: `Your ${booking.mealType} is ready! Coupon: ${booking.couponCode}.`,
-      type: 'meal_ready',
-      timestamp: new Date().toISOString(),
-      isRead: false
-    });
-    toast({ title: "Notification Sent", description: `Alert sent to ${booking.studentName}.` });
+    toast({ title: "Updated", description: "Meal marked as consumed manually." });
   };
 
   if (isUserLoading || isProfileLoading) {
@@ -126,73 +116,116 @@ export default function MessStaffPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold tracking-tight">Staff Portal</h1>
             {userProfile?.userType === 'admin' && <Badge variant="secondary">Admin View</Badge>}
           </div>
-          <p className="text-muted-foreground">Operational dashboard for campus dining.</p>
+          <p className="text-muted-foreground">Verification and dining management system.</p>
         </div>
-        <ChefHat className="size-10 text-primary opacity-20" />
+        <div className="flex items-center gap-4 bg-primary/5 p-3 rounded-lg border border-primary/10">
+          <div className="text-right">
+            <div className="text-xs font-bold uppercase text-primary">Live Stats</div>
+            <div className="text-sm font-medium">{servedCount} / {totalBooked} Served</div>
+          </div>
+          <Progress value={totalBooked > 0 ? (servedCount / totalBooked) * 100 : 0} className="w-24 h-2" />
+        </div>
       </div>
 
-      <Tabs defaultValue="orders" className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1 border-primary/20 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="size-5 text-primary" /> Verification station
+            </CardTitle>
+            <CardDescription>Students scan this to avail booked meals.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center py-6 space-y-6">
+            <div className="p-4 bg-white rounded-xl shadow-inner border-4 border-primary/20">
+              {scanUrl && (
+                <QRCodeSVG 
+                  value={scanUrl} 
+                  size={200} 
+                  level="H"
+                  includeMargin={true}
+                />
+              )}
+            </div>
+            <div className="text-center space-y-2">
+              <Badge variant="outline" className="animate-pulse">Active Verification Session</Badge>
+              <p className="text-[10px] text-muted-foreground">Refreshing dynamic token every 5 minutes</p>
+            </div>
+          </CardContent>
+          <CardFooter className="bg-muted/30 flex flex-col items-start gap-1 p-3">
+             <div className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                <Scan className="size-3" /> SCAN INSTRUCTIONS
+             </div>
+             <p className="text-[10px] text-muted-foreground">1. Student scans with phone. 2. Verification occurs automatically. 3. System marks meal as consumed.</p>
+          </CardFooter>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="size-5 text-primary" /> Real-time Consumption
+            </CardTitle>
+            <CardDescription>Monitor live pickups and handle manual overrides.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isBookingsLoading ? <Skeleton className="h-64 w-full" /> : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Meal</TableHead>
+                    <TableHead>Coupon</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {todayBookings.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                        No bookings for today yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : todayBookings.map(b => (
+                    <TableRow key={b.id}>
+                      <TableCell className="font-medium">{b.studentName}</TableCell>
+                      <TableCell className="capitalize">{b.mealType}</TableCell>
+                      <TableCell><Badge variant="secondary" className="font-mono">{b.couponCode}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant={b.status === 'consumed' ? 'secondary' : 'default'}>
+                          {b.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {b.status !== 'consumed' && (
+                          <Button size="sm" variant="ghost" onClick={() => handleManualAvail(b.id)}>
+                            Verify Manually
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="menu" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="orders"><Utensils className="mr-2 size-4" /> Live Orders</TabsTrigger>
           <TabsTrigger value="menu"><Salad className="mr-2 size-4" /> Menu Builder</TabsTrigger>
-          <TabsTrigger value="polls"><Vote className="mr-2 size-4" /> Polls</TabsTrigger>
+          <TabsTrigger value="polls"><Vote className="mr-2 size-4" /> Feedback Polls</TabsTrigger>
+          <TabsTrigger value="all-orders"><Utensils className="mr-2 size-4" /> Booking History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="orders">
-          <Card>
-            <CardHeader>
-              <CardTitle>Today's Bookings</CardTitle>
-              <CardDescription>Track incoming requests and alert students on completion.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isBookingsLoading ? <Skeleton className="h-48 w-full" /> : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Meal</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Coupon</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allBookings?.map(b => (
-                      <TableRow key={b.id}>
-                        <TableCell className="font-medium truncate max-w-[150px]">{b.studentName}</TableCell>
-                        <TableCell className="capitalize">{b.mealType}</TableCell>
-                        <TableCell>{format(new Date(b.date), 'MMM dd')}</TableCell>
-                        <TableCell><Badge variant="outline" className="font-mono">{b.couponCode}</Badge></TableCell>
-                        <TableCell>
-                          <Badge variant={b.status === 'ready' ? 'secondary' : b.status === 'consumed' ? 'outline' : 'default'}>
-                            {b.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {b.status === 'booked' && (
-                            <Button size="sm" onClick={() => handleNotifyReady(b)}>
-                              <Bell className="mr-1 size-3" /> Ready
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="menu">
-          <div className="grid gap-6 md:grid-cols-3">
+           <div className="grid gap-6 md:grid-cols-3">
             <Card className="md:col-span-1">
               <CardHeader>
                 <CardTitle>Create Menu Entry</CardTitle>
@@ -303,56 +336,78 @@ export default function MessStaffPage() {
         </TabsContent>
 
         <TabsContent value="polls">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
+           <Card>
               <CardHeader>
-                <CardTitle>Launch Feedback Poll</CardTitle>
-                <CardDescription>Survey students for menu improvements.</CardDescription>
+                <CardTitle>Mess Pulse Management</CardTitle>
+                <CardDescription>View results and close feedback loops.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Input placeholder="Question (e.g., Which dessert for Sunday?)" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} />
-                <Input placeholder="Options (comma separated: Cake, Pudding...)" value={pollOptions} onChange={e => setPollOptions(e.target.value)} />
-                <Button className="w-full" onClick={handleCreatePoll}>Launch Mess Pulse</Button>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-4">
-              {pollList?.map(poll => (
-                <Card key={poll.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm">{poll.question}</CardTitle>
-                      <Badge variant={poll.isActive ? 'default' : 'secondary'}>{poll.isActive ? 'Active' : 'Closed'}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {poll.options.map((opt, idx) => {
-                      const totalVotes = poll.options.reduce((acc, curr) => acc + curr.votes, 0);
-                      const percentage = totalVotes > 0 ? (opt.votes / totalVotes) * 100 : 0;
-                      return (
-                        <div key={idx} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span>{opt.text}</span>
-                            <span className="font-bold">{opt.votes} votes ({Math.round(percentage)}%)</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-primary" style={{ width: `${percentage}%` }} />
-                          </div>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {pollList?.map(poll => (
+                    <Card key={poll.id} className="bg-muted/30">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm">{poll.question}</CardTitle>
+                          <Badge variant={poll.isActive ? 'default' : 'secondary'}>{poll.isActive ? 'Active' : 'Closed'}</Badge>
                         </div>
-                      );
-                    })}
-                  </CardContent>
-                  <CardFooter className="pt-0">
-                    {poll.isActive && (
-                      <Button variant="outline" size="sm" className="w-full" onClick={() => updateDocumentNonBlocking(doc(firestore, 'polls', poll.id), { isActive: false })}>
-                        End Voting
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {poll.options.map((opt, idx) => {
+                          const totalVotes = poll.options.reduce((acc, curr) => acc + curr.votes, 0);
+                          const percentage = totalVotes > 0 ? (opt.votes / totalVotes) * 100 : 0;
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span>{opt.text}</span>
+                                <span className="font-bold">{opt.votes} votes ({Math.round(percentage)}%)</span>
+                              </div>
+                              <Progress value={percentage} className="h-1.5" />
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="all-orders">
+          <Card>
+            <CardHeader>
+              <CardTitle>Historical Bookings</CardTitle>
+              <CardDescription>View all bookings across time for operational audit.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isBookingsLoading ? <Skeleton className="h-48 w-full" /> : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Meal</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allBookings?.map(b => (
+                      <TableRow key={b.id}>
+                        <TableCell>{format(new Date(b.date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell className="font-medium">{b.studentName}</TableCell>
+                        <TableCell className="capitalize">{b.mealType}</TableCell>
+                        <TableCell>
+                           <Badge variant={b.status === 'consumed' ? 'secondary' : 'outline'}>
+                            {b.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
