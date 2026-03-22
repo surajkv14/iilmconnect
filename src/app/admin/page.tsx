@@ -1,27 +1,55 @@
 'use client';
 
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Trash2, ShieldCheck, UserCog } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { 
+  ShieldCheck, 
+  Users, 
+  History, 
+  TrendingDown, 
+  UserCog, 
+  MoreHorizontal,
+  Trash2
+} from 'lucide-react';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 interface UserDoc {
   id: string;
   email: string;
   displayName?: string;
   userType: 'student' | 'mess_staff' | 'admin';
+}
+
+interface MealBooking {
+  id: string;
+  studentId: string;
+  date: string;
+  mealType: string;
+  status: 'booked' | 'consumed' | 'cancelled';
+  timestamp: string;
+}
+
+interface WasteLog {
+  id: string;
+  date: string;
+  mealType: string;
+  wastedKgs: number;
+  reason: string;
 }
 
 export default function AdminPage() {
@@ -32,99 +60,185 @@ export default function AdminPage() {
   const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserDoc>(userProfileRef);
 
-  const usersCollectionRef = useMemoFirebase(() => (userProfile?.userType === 'admin' ? collection(firestore, 'users') : null), [userProfile, firestore]);
-  const { data: users, isLoading: areUsersLoading } = useCollection<UserDoc>(usersCollectionRef);
+  // Queries for admin data
+  const isAdmin = userProfile?.userType === 'admin';
+
+  const usersQuery = useMemoFirebase(() => (isAdmin ? collection(firestore, 'users') : null), [isAdmin, firestore]);
+  const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserDoc>(usersQuery);
+
+  const bookingsQuery = useMemoFirebase(() => (isAdmin ? collection(firestore, 'bookings') : null), [isAdmin, firestore]);
+  const { data: allBookings, isLoading: areBookingsLoading } = useCollection<MealBooking>(bookingsQuery);
+
+  const wasteQuery = useMemoFirebase(() => (isAdmin ? collection(firestore, 'waste_logs') : null), [isAdmin, firestore]);
+  const { data: wasteLogs, isLoading: isWasteLoading } = useCollection<WasteLog>(wasteQuery);
 
   const handleRoleChange = (userId: string, newRole: string) => {
     const userDocRef = doc(firestore, 'users', userId);
     updateDocumentNonBlocking(userDocRef, { userType: newRole });
     toast({
-      title: "User Role Updated",
-      description: `User role has been updated to ${newRole.replace('_', ' ')}.`,
-    })
+      title: "Role Updated",
+      description: `User role has been changed to ${newRole}.`,
+    });
   };
 
-  const isLoading = isUserLoading || isProfileLoading;
-  const isAdmin = userProfile?.userType === 'admin';
-
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        <Skeleton className="h-10 w-64" />
-        <Card>
-          <CardHeader><Skeleton className="h-8 w-48" /></CardHeader>
-          <CardContent><Skeleton className="h-24 w-full" /></CardContent>
-        </Card>
-      </div>
-    );
+  if (isUserLoading || isProfileLoading) {
+    return <div className="p-8 space-y-4"><Skeleton className="h-12 w-1/4" /><Skeleton className="h-64 w-full" /></div>;
   }
 
   if (!user || !isAdmin) {
     return (
-       <Alert variant="destructive">
-        <ShieldCheck className="h-4 w-4" />
-        <AlertTitle>Access Denied</AlertTitle>
-        <AlertDescription>You do not have administrative privileges to view this page.</AlertDescription>
-      </Alert>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Alert variant="destructive" className="max-w-md">
+          <ShieldCheck className="h-4 w-4" />
+          <AlertTitle>Access Denied</AlertTitle>
+          <AlertDescription>You do not have administrative privileges to access this panel.</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-2">
-        <UserCog className="size-8 text-primary" />
-        <h1 className="text-3xl font-bold tracking-tight">Mess Administration</h1>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
+        <p className="text-muted-foreground">Manage campus-wide mess operations and user permissions.</p>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>Manage roles for students and mess staff.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {areUsersLoading ? <Skeleton className="h-32 w-full" /> : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users?.map(u => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.displayName || 'Unnamed User'}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>
-                      <Select 
-                        value={u.userType} 
-                        onValueChange={(newRole) => handleRoleChange(u.id, newRole)}
-                        disabled={u.id === user.uid}
-                      >
-                        <SelectTrigger className="w-40">
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="student">Student</SelectItem>
-                          <SelectItem value="mess_staff">Mess Staff</SelectItem>
-                          <SelectItem value="admin">Administrator</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" disabled={u.id === user.uid}>
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users" className="gap-2">
+            <Users className="size-4" /> User Management
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="size-4" /> Global History
+          </TabsTrigger>
+          <TabsTrigger value="waste" className="gap-2">
+            <TrendingDown className="size-4" /> Sustainability
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>Campus Users</CardTitle>
+              <CardDescription>Update user roles for students and mess personnel.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {areUsersLoading ? <Skeleton className="h-48 w-full" /> : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Current Role</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allUsers?.map(u => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.displayName || 'Unnamed User'}</TableCell>
+                        <TableCell>{u.email}</TableCell>
+                        <TableCell>
+                          <Badge variant={u.userType === 'admin' ? 'default' : u.userType === 'mess_staff' ? 'secondary' : 'outline'}>
+                            {u.userType.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Select 
+                            defaultValue={u.userType} 
+                            onValueChange={(val) => handleRoleChange(u.id, val)}
+                            disabled={u.id === user.uid}
+                          >
+                            <SelectTrigger className="w-32 ml-auto">
+                              <SelectValue placeholder="Change role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="student">Student</SelectItem>
+                              <SelectItem value="mess_staff">Mess Staff</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Global Consumption Records</CardTitle>
+              <CardDescription>Monitoring meal attendance across the entire campus.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {areBookingsLoading ? <Skeleton className="h-48 w-full" /> : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Student ID</TableHead>
+                      <TableHead>Meal</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allBookings?.sort((a,b) => b.date.localeCompare(a.date)).map(b => (
+                      <TableRow key={b.id}>
+                        <TableCell>{format(new Date(b.date), 'PP')}</TableCell>
+                        <TableCell className="font-mono text-xs">{b.studentId}</TableCell>
+                        <TableCell className="capitalize">{b.mealType}</TableCell>
+                        <TableCell>
+                          <Badge variant={b.status === 'consumed' ? 'secondary' : 'default'}>
+                            {b.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="waste">
+          <Card>
+            <CardHeader>
+              <CardTitle>Waste Tracking</CardTitle>
+              <CardDescription>Daily food waste reports submitted by mess staff.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isWasteLoading ? <Skeleton className="h-48 w-full" /> : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Meal</TableHead>
+                      <TableHead>Wasted (kg)</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {wasteLogs?.map(log => (
+                      <TableRow key={log.id}>
+                        <TableCell>{format(new Date(log.date), 'PP')}</TableCell>
+                        <TableCell className="capitalize">{log.mealType}</TableCell>
+                        <TableCell className="text-destructive font-bold">{log.wastedKgs} kg</TableCell>
+                        <TableCell>{log.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -10,7 +9,8 @@ import {
   ChevronDown,
   Settings,
   History,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck
 } from 'lucide-react';
 import {
   Sidebar,
@@ -34,16 +34,23 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '../ui/button';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Skeleton } from '../ui/skeleton';
+import { doc } from 'firebase/firestore';
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const pathname = usePathname();
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
+  const { data: userProfile } = useDoc(userProfileRef);
+
+  const isAdmin = userProfile?.userType === 'admin';
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -97,6 +104,17 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === '/admin'} tooltip="Admin Panel">
+                <Link href="/admin">
+                  <ShieldCheck className="text-primary" />
+                  <span>Admin Settings</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
@@ -141,10 +159,6 @@ export function AppSidebar() {
                     <UserIcon className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                 </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
