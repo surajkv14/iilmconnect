@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   UtensilsCrossed, 
   Leaf, 
@@ -16,10 +17,12 @@ import {
   Info, 
   Scan, 
   Camera,
-  X
+  X,
+  MessageCircle,
+  Send
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { format, addDays } from 'date-fns';
@@ -28,6 +31,7 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MealItem { name: string; category: 'Veg' | 'Non-Veg' | 'Vegan'; calories: number; }
 interface MessMeal { id: string; date: string; type: string; items: MealItem[]; }
@@ -74,6 +78,11 @@ export default function SmartMessPage() {
   const router = useRouter();
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
+  // Feedback State
+  const [feedbackMsg, setFeedbackMsg] = useState("");
+  const [feedbackCategory, setFeedbackCategory] = useState("General");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
   const dates = useMemo(() => ({
     tomorrow: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
     dayAfter: format(addDays(new Date(), 2), 'yyyy-MM-dd')
@@ -111,12 +120,11 @@ export default function SmartMessPage() {
 
   useEffect(() => {
     if (isScannerOpen) {
-      // Small delay to ensure the container is rendered
       const timer = setTimeout(() => {
         const scanner = new Html5QrcodeScanner(
           "qr-reader",
           { fps: 10, qrbox: { width: 250, height: 250 } },
-          /* verbose= */ false
+          false
         );
         
         scanner.render(onScanSuccess, onScanFailure);
@@ -133,12 +141,10 @@ export default function SmartMessPage() {
   }, [isScannerOpen]);
 
   function onScanSuccess(decodedText: string) {
-    // If scanning from the app, it might be a relative or absolute URL
     if (decodedText.includes('/scan-meal')) {
       if (scannerRef.current) {
         scannerRef.current.clear().then(() => {
           setIsScannerOpen(false);
-          // Extract path or just navigate to the known endpoint
           router.push('/scan-meal');
         });
       }
@@ -151,9 +157,7 @@ export default function SmartMessPage() {
     }
   }
 
-  function onScanFailure(error: any) {
-    // Failures are common while searching for a QR code, so we don't need to log them heavily
-  }
+  function onScanFailure(error: any) {}
 
   const handleBookingToggle = (mealType: 'breakfast' | 'lunch' | 'dinner') => {
     if (!user || !firestore) return;
@@ -208,6 +212,23 @@ export default function SmartMessPage() {
     toast({ title: 'Mess Pulse', description: 'Your vote has been recorded!' });
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!user || !feedbackMsg) return;
+    setIsSubmittingFeedback(true);
+
+    addDocumentNonBlocking(collection(firestore, 'feedback'), {
+      userId: user.uid,
+      userName: user.displayName || user.email,
+      message: feedbackMsg,
+      category: feedbackCategory,
+      timestamp: serverTimestamp(),
+    });
+
+    setFeedbackMsg("");
+    setIsSubmittingFeedback(false);
+    toast({ title: "Feedback Sent", description: "The mess team has received your message." });
+  };
+
   if (isUserLoading || isLoadingSelections) {
     return <div className="space-y-8 p-8"><Skeleton className="h-12 w-64" /><Skeleton className="h-96 w-full" /></div>;
   }
@@ -247,11 +268,6 @@ export default function SmartMessPage() {
               <Ticket className="mr-2 size-4" /> My Coupons
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className="h-9 px-4">
-            <Link href={user ? `/profile/${user.uid}` : '/login'}>
-              <Leaf className="mr-2 size-4 text-green-500" /> Preferences
-            </Link>
-          </Button>
         </div>
       </div>
 
@@ -268,17 +284,17 @@ export default function SmartMessPage() {
         </div>
       </Tabs>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-primary/20 bg-primary/5 shadow-sm">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-1 border-primary/20 bg-primary/5 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="size-5 text-primary" /> Booking Portal
             </CardTitle>
-            <CardDescription>Confirm your presence for the selected date.</CardDescription>
+            <CardDescription>Confirm presence for {dates[activeTab]}.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {!user ? (
-              <p className="text-sm text-muted-foreground italic">Sign in to reserve your meals.</p>
+              <p className="text-sm text-muted-foreground italic">Sign in to reserve meals.</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {(['breakfast', 'lunch', 'dinner'] as const).map(type => {
@@ -302,59 +318,96 @@ export default function SmartMessPage() {
           </CardContent>
           <CardFooter className="bg-muted/30 py-3">
             <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-              <Clock className="size-3" /> Note: Bookings close exactly 24 hours prior to the meal.
+              <Clock className="size-3" /> Note: Bookings close 24h prior.
             </p>
           </CardFooter>
         </Card>
 
-        {activePolls && activePolls.length > 0 && (
-          <Card className="shadow-sm">
+        <Card className="lg:col-span-1 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Vote className="size-5 text-primary" /> Mess Pulse
               </CardTitle>
-              <CardDescription>Shape next week's menu with your vote.</CardDescription>
+              <CardDescription>Shape next week's menu.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8">
-              {activePolls.map(poll => {
+            <CardContent className="space-y-8 h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {(!activePolls || activePolls.length === 0) ? (
+                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
+                    <Vote className="size-12 mb-2" />
+                    <p className="text-xs italic">No active polls</p>
+                 </div>
+              ) : activePolls.map(poll => {
                 const hasVoted = poll.voters?.includes(user?.uid || '');
                 const totalVotes = poll.options.reduce((acc, curr) => acc + curr.votes, 0);
                 
                 return (
-                  <div key={poll.id} className="space-y-4">
+                  <div key={poll.id} className="space-y-4 border-b pb-4 last:border-b-0">
                     <h4 className="text-sm font-semibold border-l-4 border-primary pl-3">{poll.question}</h4>
-                    <div className="grid gap-3">
+                    <div className="grid gap-2">
                       {poll.options.map((opt, idx) => {
                         const percentage = totalVotes > 0 ? (opt.votes / totalVotes) * 100 : 0;
                         return (
-                          <div key={idx} className="space-y-1.5">
+                          <div key={idx} className="space-y-1">
                             <Button 
                               variant={hasVoted ? 'ghost' : 'outline'}
                               disabled={hasVoted}
-                              className={`w-full justify-between h-auto py-2.5 transition-all ${!hasVoted && 'hover:bg-primary/5 hover:border-primary/50'}`}
+                              className={`w-full justify-between h-auto py-2 transition-all ${!hasVoted && 'hover:bg-primary/5 hover:border-primary/50'}`}
                               onClick={() => handleVote(poll.id, idx)}
                             >
-                              <span className="text-sm">{opt.text}</span>
-                              {hasVoted && <span className="text-xs font-bold">{Math.round(percentage)}%</span>}
+                              <span className="text-xs">{opt.text}</span>
+                              {hasVoted && <span className="text-[10px] font-bold">{Math.round(percentage)}%</span>}
                             </Button>
-                            {hasVoted && (
-                              <Progress value={percentage} className="h-1.5" />
-                            )}
+                            {hasVoted && <Progress value={percentage} className="h-1" />}
                           </div>
                         );
                       })}
                     </div>
-                    {hasVoted && (
-                      <p className="text-[10px] text-center text-muted-foreground italic">
-                        Thank you! Your feedback helps us serve you better.
-                      </p>
-                    )}
                   </div>
                 );
               })}
             </CardContent>
-          </Card>
-        )}
+        </Card>
+
+        <Card className="lg:col-span-1 shadow-sm border-accent">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="size-5 text-primary" /> Voice of Campus
+            </CardTitle>
+            <CardDescription>Direct feedback to the mess staff.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground">Category</label>
+              <Select value={feedbackCategory} onValueChange={setFeedbackCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="Food Quality">Food Quality</SelectItem>
+                  <SelectItem value="Service">Service</SelectItem>
+                  <SelectItem value="Hygiene">Hygiene</SelectItem>
+                  <SelectItem value="Suggestions">Suggestions</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground">Message</label>
+              <Textarea 
+                placeholder="Share your thoughts..." 
+                className="min-h-[100px] text-sm"
+                value={feedbackMsg}
+                onChange={e => setFeedbackMsg(e.target.value)}
+              />
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={handleSubmitFeedback} 
+              disabled={isSubmittingFeedback || !feedbackMsg}
+            >
+              <Send className="mr-2 size-4" /> 
+              {isSubmittingFeedback ? "Sending..." : "Submit Feedback"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

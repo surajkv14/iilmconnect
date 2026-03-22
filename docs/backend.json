@@ -56,7 +56,7 @@
         "date": { "type": "string", "format": "date" },
         "mealType": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["booked", "ready", "consumed", "cancelled"] },
+        "status": { "type": "string", "enum": ["booked", "consumed", "cancelled"] },
         "couponCode": { "type": "string" }
       },
       "required": ["studentId", "status", "date", "mealType", "couponCode"]
@@ -80,6 +80,18 @@
         "voters": { "type": "array", "items": { "type": "string" } },
         "isActive": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "message": { "type": "string" },
+        "category": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
       }
     },
     "Notification": {
@@ -115,6 +127,10 @@
       {
         "path": "/polls/{pollId}",
         "definition": { "schema": { "$ref": "#/backend/entities/Poll" } }
+      },
+      {
+        "path": "/feedback/{feedbackId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/Feedback" } }
       },
       {
         "path": "/notifications/{notifId}",
