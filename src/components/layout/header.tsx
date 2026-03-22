@@ -32,7 +32,7 @@ export function AppHeader() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">IILM University</BreadcrumbLink>
+              <BreadcrumbLink href="/">Smart Mess</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -43,7 +43,7 @@ export function AppHeader() {
       </div>
 
       <div className="ml-auto">
-        {/* Placeholder for actions like search, notifications, etc. */}
+        {/* Actions like notifications can be added here */}
       </div>
     </header>
   );

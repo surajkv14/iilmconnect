@@ -9,8 +9,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'IILM University – AI-Powered Smart Campus Platform',
-  description: 'A unified platform for students, faculty, alumni, and staff at IILM University.',
+  title: 'Smart Mess – AI-Powered Campus Dining',
+  description: 'Smart monitoring and meal booking for campus dining and sustainability.',
 };
 
 export default function RootLayout({
