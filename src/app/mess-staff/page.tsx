@@ -32,21 +32,33 @@ export default function MessStaffPage() {
   const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [user, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
 
-  // Menu Builder State
-  const [newMealDate, setNewMealDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
+  // Hydration-safe state
+  const [mounted, setMounted] = useState(false);
+  const [today, setToday] = useState<string | null>(null);
+  const [newMealDate, setNewMealDate] = useState("");
   const [newMealType, setNewMealType] = useState<'breakfast' | 'lunch' | 'dinner'>('lunch');
   const [pendingItems, setPendingItems] = useState<{ name: string; category: string; calories: number }[]>([]);
   const [itemName, setItemName] = useState("");
   const [itemCategory, setItemCategory] = useState("Veg");
+  const [scanUrl, setScanUrl] = useState('');
 
   // Poll Builder State
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
 
+  useEffect(() => {
+    setMounted(true);
+    const now = new Date();
+    setToday(format(now, 'yyyy-MM-dd'));
+    setNewMealDate(format(addDays(now, 1), 'yyyy-MM-dd'));
+    if (typeof window !== 'undefined') {
+      setScanUrl(`${window.location.origin}/scan-meal`);
+    }
+  }, []);
+
   const canAccess = userProfile?.userType === 'mess_staff' || userProfile?.userType === 'admin';
 
   // Queries
-  const today = format(new Date(), 'yyyy-MM-dd');
   const menuQuery = useMemoFirebase(() => canAccess ? query(collection(firestore, 'menu'), orderBy('date', 'desc')) : null, [firestore, canAccess]);
   const { data: menuList, isLoading: isMenuLoading } = useCollection<MessMeal>(menuQuery);
 
@@ -59,17 +71,13 @@ export default function MessStaffPage() {
   const feedbackQuery = useMemoFirebase(() => canAccess ? query(collection(firestore, 'feedback'), orderBy('timestamp', 'desc')) : null, [firestore, canAccess]);
   const { data: feedbackList, isLoading: isFeedbackLoading } = useCollection<Feedback>(feedbackQuery);
 
-  const todayBookings = useMemo(() => allBookings?.filter(b => b.date === today) || [], [allBookings, today]);
+  const todayBookings = useMemo(() => {
+    if (!today || !allBookings) return [];
+    return allBookings.filter(b => b.date === today);
+  }, [allBookings, today]);
+
   const servedCount = todayBookings.filter(b => b.status === 'consumed').length;
   const totalBooked = todayBookings.length;
-
-  const [scanUrl, setScanUrl] = useState('');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setScanUrl(`${window.location.origin}/scan-meal`);
-    }
-  }, []);
 
   const addPendingItem = () => {
     if (!itemName) return;
@@ -128,7 +136,7 @@ export default function MessStaffPage() {
     updateDocumentNonBlocking(doc(firestore, 'polls', pollId), { isActive: !currentStatus });
   };
 
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading || isProfileLoading || !mounted) {
     return <div className="p-8 space-y-4"><Skeleton className="h-12 w-1/4" /><Skeleton className="h-64 w-full" /></div>;
   }
 
@@ -340,7 +348,7 @@ export default function MessStaffPage() {
                     <TableBody>
                       {menuList?.map(m => (
                         <TableRow key={m.id}>
-                          <TableCell className="font-medium">{format(new Date(m.date), 'MMM dd')}</TableCell>
+                          <TableCell className="font-medium">{m.date ? format(new Date(m.date), 'MMM dd') : 'N/A'}</TableCell>
                           <TableCell className="capitalize">{m.type}</TableCell>
                           <TableCell className="max-w-xs">
                             <div className="flex flex-wrap gap-1">
@@ -505,7 +513,7 @@ export default function MessStaffPage() {
                   <TableBody>
                     {allBookings?.map(b => (
                       <TableRow key={b.id}>
-                        <TableCell>{format(new Date(b.date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>{b.date ? format(new Date(b.date), 'MMM dd, yyyy') : 'N/A'}</TableCell>
                         <TableCell className="font-medium">{b.studentName}</TableCell>
                         <TableCell className="capitalize">{b.mealType}</TableCell>
                         <TableCell>

@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
@@ -39,11 +40,16 @@ export function AppHeader() {
   const pageTitle = toTitleCase(segments[segments.length -1] || 'Dashboard');
   const { user } = useUser();
   const firestore = useFirestore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const notificationsQuery = useMemoFirebase(() => 
     (user && firestore) ? query(
       collection(firestore, 'notifications'), 
-      where('userId', 'in', [user.uid, 'staff']), // Staff see all staff-tagged notifications
+      where('userId', 'in', [user.uid, 'staff']), 
       orderBy('timestamp', 'desc'),
       limit(5)
     ) : null,
@@ -91,9 +97,11 @@ export function AppHeader() {
                 notifications.map(n => (
                   <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-3">
                     <p className="text-xs font-medium">{n.message}</p>
-                    <span className="text-[10px] text-muted-foreground">
-                      {new Date(n.timestamp).toLocaleTimeString()}
-                    </span>
+                    {mounted && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(n.timestamp).toLocaleTimeString()}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 ))
               ) : (

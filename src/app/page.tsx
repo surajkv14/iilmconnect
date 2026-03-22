@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,11 +14,16 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recha
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const [today, setToday] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Determine today's date only on the client to avoid hydration errors
+    setToday(new Date().toISOString().split('T')[0]);
+  }, []);
 
   // Fetch bookings for today
-  const today = new Date().toISOString().split('T')[0];
   const bookingsQuery = useMemoFirebase(() => 
-    firestore ? query(collection(firestore, 'bookings'), where('date', '==', today)) : null,
+    (firestore && today) ? query(collection(firestore, 'bookings'), where('date', '==', today)) : null,
     [firestore, today]
   );
   const { data: bookings, isLoading: isLoadingBookings } = useCollection(bookingsQuery);
