@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -59,11 +60,6 @@ const menuData: { today: Meal, tomorrow: Meal } = {
   }
 };
 
-const allergyInfo = [
-    { icon: <Wheat className="size-4" />, label: 'Gluten' },
-    { icon: <Nut className="size-4" />, label: 'Nuts' },
-];
-
 const MealCard = ({ title, items }: { title: string, items: MealItem[] }) => (
     <Card>
         <CardHeader>
@@ -92,17 +88,16 @@ export default function SmartMessPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const getMealId = (day: 'today' | 'tomorrow', mealType: 'breakfast' | 'lunch' | 'dinner') => {
+  const getMealDate = (day: 'today' | 'tomorrow') => {
     const date = new Date();
     if (day === 'tomorrow') {
       date.setDate(date.getDate() + 1);
     }
-    const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
-    return `${dateString}-${mealType}`;
+    return date.toISOString().split('T')[0];
   };
 
   const selectionsQuery = useMemoFirebase(() => 
-    (user && firestore) ? query(collection(firestore, 'student_meal_selections'), where('studentId', '==', user.uid)) : null,
+    (user && firestore) ? query(collection(firestore, 'bookings'), where('studentId', '==', user.uid)) : null,
     [user, firestore]
   );
   
@@ -111,32 +106,37 @@ export default function SmartMessPage() {
   const handleBookingToggle = (mealType: 'breakfast' | 'lunch' | 'dinner') => {
     if (!user || !firestore) return;
 
-    const mealId = getMealId(activeTab, mealType);
+    const date = getMealDate(activeTab);
+    const mealId = `${date}-${mealType}`;
     const existingBooking = bookedSelections?.find(selection => selection.mealId === mealId);
 
     if (existingBooking) {
-      const docRef = doc(firestore, 'student_meal_selections', existingBooking.id);
+      const docRef = doc(firestore, 'bookings', existingBooking.id);
       deleteDocumentNonBlocking(docRef);
     } else {
-      addDocumentNonBlocking(collection(firestore, 'student_meal_selections'), {
+      addDocumentNonBlocking(collection(firestore, 'bookings'), {
         studentId: user.uid,
         mealId: mealId,
-        portion: 1,
+        date: date,
+        mealType: mealType,
+        status: 'booked',
+        timestamp: new Date().toISOString(),
       });
     }
   };
   
   const isBooked = (mealType: 'breakfast' | 'lunch' | 'dinner') => {
     if (!bookedSelections) return false;
-    const mealId = getMealId(activeTab, mealType);
+    const date = getMealDate(activeTab);
+    const mealId = `${date}-${mealType}`;
     return bookedSelections.some(selection => selection.mealId === mealId);
   };
 
   const bookingSectionContent = () => {
     if (isUserLoading || isLoadingSelections) {
         return (
-             <div>
-                <h3 className="font-medium mb-2"><Skeleton className="h-5 w-48" /></h3>
+             <div className="space-y-4">
+                <Skeleton className="h-5 w-48" />
                 <div className="flex flex-wrap gap-4">
                     <Skeleton className="h-10 w-36" />
                     <Skeleton className="h-10 w-32" />
@@ -148,13 +148,13 @@ export default function SmartMessPage() {
     if (!user) {
         return (
             <p className="text-muted-foreground">
-                Please <Link href="/login" className="text-primary underline">log in</Link> to book your meals.
+                Please <Link href="/login" className="text-primary underline font-medium">log in</Link> to book your meals.
             </p>
         )
     }
     return (
         <div>
-            <h3 className="font-medium mb-2">Book Your Meal for {activeTab === 'today' ? 'Today' : 'Tomorrow'}</h3>
+            <h3 className="font-medium mb-4">Book Your Meal for {activeTab === 'today' ? 'Today' : 'Tomorrow'}</h3>
             <div className="flex flex-wrap gap-4">
                 {(['breakfast', 'lunch', 'dinner'] as const).map(mealType => {
                     const booked = isBooked(mealType);
@@ -175,10 +175,12 @@ export default function SmartMessPage() {
 
   return (
     <div className="space-y-8">
-        <div className="flex items-center justify-between space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Smart Mess</h1>
-            <Button>
-                <Leaf className="mr-2 size-4" /> Manage Preferences
+        <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold tracking-tight">Meal Booking</h1>
+            <Button asChild variant="outline">
+                <Link href={`/profile/${user?.uid}`}>
+                    <Leaf className="mr-2 size-4 text-green-500" /> My Preferences
+                </Link>
             </Button>
         </div>
 
@@ -188,14 +190,14 @@ export default function SmartMessPage() {
                 <TabsTrigger value="tomorrow">Tomorrow's Menu</TabsTrigger>
             </TabsList>
             <TabsContent value="today" className="pt-6">
-                <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <MealCard title="Breakfast" items={menuData.today.breakfast} />
                     <MealCard title="Lunch" items={menuData.today.lunch} />
                     <MealCard title="Dinner" items={menuData.today.dinner} />
                 </div>
             </TabsContent>
             <TabsContent value="tomorrow" className="pt-6">
-                <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <MealCard title="Breakfast" items={menuData.tomorrow.breakfast} />
                     <MealCard title="Lunch" items={menuData.tomorrow.lunch} />
                     <MealCard title="Dinner" items={menuData.tomorrow.dinner} />
@@ -203,34 +205,21 @@ export default function SmartMessPage() {
             </TabsContent>
         </Tabs>
         
-        <Card>
+        <Card className="border-primary/20 bg-primary/5">
             <CardHeader>
-                <CardTitle>Meal Booking & Preferences</CardTitle>
-                <CardDescription>Book your meals in advance and set your dietary needs.</CardDescription>
+                <CardTitle>Reservation Desk</CardTitle>
+                <CardDescription>Confirm your presence for upcoming meals to help us minimize waste.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent>
                 {bookingSectionContent()}
-                <div>
-                    <h3 className="font-medium mb-2">My Allergies</h3>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        {allergyInfo.map(info => (
-                            <div key={info.label} className="flex items-center gap-2">
-                                {info.icon}
-                                <span>{info.label}</span>
-                            </div>
-                        ))}
-                         <Button variant="link" size="sm" className="p-0 h-auto">Edit</Button>
-                    </div>
-                </div>
             </CardContent>
-            <CardFooter>
-                 <p className="text-xs text-muted-foreground">
-                    <UtensilsCrossed className="inline-block mr-2 size-3" />
-                    Bookings close 2 hours before meal time.
+            <CardFooter className="border-t pt-4">
+                 <p className="text-xs text-muted-foreground flex items-center">
+                    <UtensilsCrossed className="mr-2 size-3" />
+                    Bookings close 2 hours before the scheduled meal time.
                 </p>
             </CardFooter>
         </Card>
     </div>
   );
 }
-    

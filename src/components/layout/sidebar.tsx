@@ -82,16 +82,16 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/history')} tooltip="My History">
-              <Link href="/smart-mess">
+            <SidebarMenuButton asChild isActive={pathname === '/history'} tooltip="My History">
+              <Link href="/history">
                 <History />
                 <span>Consumption History</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/preferences')} tooltip="Dietary Info">
-              <Link href="/profile">
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/profile')} tooltip="Dietary Info">
+              <Link href={user ? `/profile/${user.uid}` : '/login'}>
                 <AlertTriangle />
                 <span>Allergies & Preferences</span>
               </Link>
@@ -142,7 +142,7 @@ export function AppSidebar() {
                     <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem disabled>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>

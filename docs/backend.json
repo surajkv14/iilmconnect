@@ -74,10 +74,12 @@
         "id": { "type": "string" },
         "studentId": { "type": "string" },
         "mealId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "mealType": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["booked", "consumed", "cancelled"] }
       },
-      "required": ["studentId", "mealId", "status"]
+      "required": ["studentId", "mealId", "status", "date", "mealType"]
     },
     "WasteData": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -131,7 +133,6 @@
           "description": "Tracking food waste for sustainability."
         }
       }
-    ],
-    "reasoning": "Refocused exclusively on Smart Mess operations. Removed all LMS and social entities to reduce overhead and focus the app's purpose on nutritional management and waste reduction."
+    ]
   }
 }
