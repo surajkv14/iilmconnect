@@ -83,14 +83,21 @@ export default function SmartMessPage() {
   const [feedbackCategory, setFeedbackCategory] = useState("General");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
-  const dates = useMemo(() => ({
-    tomorrow: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-    dayAfter: format(addDays(new Date(), 2), 'yyyy-MM-dd')
-  }), []);
+  // Hydration safety
+  const [mounted, setMounted] = useState(false);
+  const [dates, setDates] = useState<{ tomorrow: string; dayAfter: string } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    setDates({
+      tomorrow: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      dayAfter: format(addDays(new Date(), 2), 'yyyy-MM-dd')
+    });
+  }, []);
 
   // Fetch Menu
   const menuQuery = useMemoFirebase(() => 
-    firestore ? query(collection(firestore, 'menu'), where('date', 'in', [dates.tomorrow, dates.dayAfter])) : null,
+    (firestore && dates) ? query(collection(firestore, 'menu'), where('date', 'in', [dates.tomorrow, dates.dayAfter])) : null,
     [firestore, dates]
   );
   const { data: menuItems } = useCollection<MessMeal>(menuQuery);
@@ -110,6 +117,7 @@ export default function SmartMessPage() {
   const { data: activePolls } = useCollection<Poll>(pollsQuery);
 
   const currentMenu = useMemo(() => {
+    if (!dates) return { breakfast: undefined, lunch: undefined, dinner: undefined };
     const targetDate = dates[activeTab];
     return {
       breakfast: menuItems?.find(m => m.date === targetDate && m.type === 'breakfast'),
@@ -160,7 +168,7 @@ export default function SmartMessPage() {
   function onScanFailure(error: any) {}
 
   const handleBookingToggle = (mealType: 'breakfast' | 'lunch' | 'dinner') => {
-    if (!user || !firestore) return;
+    if (!user || !firestore || !dates) return;
 
     const date = dates[activeTab];
     const mealId = `${date}-${mealType}`;
@@ -229,7 +237,7 @@ export default function SmartMessPage() {
     toast({ title: "Feedback Sent", description: "The mess team has received your message." });
   };
 
-  if (isUserLoading || isLoadingSelections) {
+  if (!mounted || isUserLoading || isLoadingSelections || !dates) {
     return <div className="space-y-8 p-8"><Skeleton className="h-12 w-64" /><Skeleton className="h-96 w-full" /></div>;
   }
 

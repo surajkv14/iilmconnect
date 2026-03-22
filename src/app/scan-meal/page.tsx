@@ -24,19 +24,29 @@ export default function ScanMealPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'invalid-time'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [mealInfo, setMealInfo] = useState<{ type: string; date: string } | null>(null);
+  
+  // Defer date logic to prevent hydration errors
+  const [today, setToday] = useState<string | null>(null);
+  const [currentMealType, setCurrentMealType] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-  const currentHour = new Date().getHours();
+  useEffect(() => {
+    setMounted(true);
+    const now = new Date();
+    const t = format(now, 'yyyy-MM-dd');
+    const hour = now.getHours();
 
-  const currentMealType = useMemo(() => {
-    if (currentHour >= MEAL_WINDOWS.breakfast.start && currentHour < MEAL_WINDOWS.breakfast.end) return 'breakfast';
-    if (currentHour >= MEAL_WINDOWS.lunch.start && currentHour < MEAL_WINDOWS.lunch.end) return 'lunch';
-    if (currentHour >= MEAL_WINDOWS.dinner.start && currentHour < MEAL_WINDOWS.dinner.end) return 'dinner';
-    return null;
-  }, [currentHour]);
+    let type: string | null = null;
+    if (hour >= MEAL_WINDOWS.breakfast.start && hour < MEAL_WINDOWS.breakfast.end) type = 'breakfast';
+    else if (hour >= MEAL_WINDOWS.lunch.start && hour < MEAL_WINDOWS.lunch.end) type = 'lunch';
+    else if (hour >= MEAL_WINDOWS.dinner.start && hour < MEAL_WINDOWS.dinner.end) type = 'dinner';
+    
+    setToday(t);
+    setCurrentMealType(type);
+  }, []);
 
   const bookingQuery = useMemoFirebase(() => 
-    (user && firestore && currentMealType) ? query(
+    (user && firestore && currentMealType && today) ? query(
       collection(firestore, 'bookings'),
       where('studentId', '==', user.uid),
       where('date', '==', today),
@@ -49,7 +59,7 @@ export default function ScanMealPage() {
   const { data: bookings, isLoading: isQueryLoading } = useCollection(bookingQuery);
 
   useEffect(() => {
-    if (isUserLoading || isQueryLoading) return;
+    if (!mounted || isUserLoading || isQueryLoading || !today) return;
 
     if (!user) {
       setStatus('error');
@@ -86,9 +96,9 @@ export default function ScanMealPage() {
 
     setMealInfo({ type: booking.mealType, date: booking.date });
     setStatus('success');
-  }, [user, isUserLoading, bookings, isQueryLoading, currentMealType, firestore]);
+  }, [user, isUserLoading, bookings, isQueryLoading, currentMealType, firestore, mounted, today]);
 
-  if (status === 'loading') {
+  if (!mounted || status === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <Skeleton className="size-20 rounded-full" />
