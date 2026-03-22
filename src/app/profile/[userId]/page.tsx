@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Edit, KeyRound, ShieldCheck, Salad, AlertCircle } from 'lucide-react';
+import { Mail, Edit, KeyRound, Salad, AlertCircle } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking, useAuth } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,7 +25,7 @@ interface UserProfile {
   displayName?: string;
   photoURL?: string;
   bio?: string;
-  userType: 'student' | 'mess_staff' | 'admin';
+  userType: 'student' | 'faculty' | 'mess_staff' | 'admin';
   dietaryPreferences: string[];
   allergies: string[];
 }
@@ -122,7 +123,7 @@ export default function ProfilePage() {
                             <AvatarFallback>{userProfile.email?.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <h2 className="text-2xl font-bold">{userProfile.displayName || 'Guest User'}</h2>
-                        <Badge variant="secondary" className="mt-2 capitalize">
+                        <Badge variant={userProfile.userType === 'admin' ? 'default' : userProfile.userType === 'student' ? 'outline' : 'secondary'} className="mt-2 capitalize">
                             {userProfile.userType?.replace('_', ' ')}
                         </Badge>
                         

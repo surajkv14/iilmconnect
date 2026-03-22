@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, orderBy } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -13,10 +14,7 @@ import {
   ShieldCheck, 
   Users, 
   History, 
-  TrendingDown, 
-  UserCog, 
-  MoreHorizontal,
-  Trash2
+  TrendingDown 
 } from 'lucide-react';
 import {
   Select,
@@ -32,7 +30,7 @@ interface UserDoc {
   id: string;
   email: string;
   displayName?: string;
-  userType: 'student' | 'mess_staff' | 'admin';
+  userType: 'student' | 'faculty' | 'mess_staff' | 'admin';
 }
 
 interface MealBooking {
@@ -121,7 +119,7 @@ export default function AdminPage() {
           <Card>
             <CardHeader>
               <CardTitle>Campus Users</CardTitle>
-              <CardDescription>Update user roles for students and mess personnel.</CardDescription>
+              <CardDescription>Update user roles for students, faculty, and mess personnel.</CardDescription>
             </CardHeader>
             <CardContent>
               {areUsersLoading ? <Skeleton className="h-48 w-full" /> : (
@@ -140,7 +138,7 @@ export default function AdminPage() {
                         <TableCell className="font-medium">{u.displayName || 'Unnamed User'}</TableCell>
                         <TableCell>{u.email}</TableCell>
                         <TableCell>
-                          <Badge variant={u.userType === 'admin' ? 'default' : u.userType === 'mess_staff' ? 'secondary' : 'outline'}>
+                          <Badge variant={u.userType === 'admin' ? 'default' : u.userType === 'student' ? 'outline' : 'secondary'}>
                             {u.userType.replace('_', ' ')}
                           </Badge>
                         </TableCell>
@@ -155,6 +153,7 @@ export default function AdminPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="student">Student</SelectItem>
+                              <SelectItem value="faculty">Faculty</SelectItem>
                               <SelectItem value="mess_staff">Mess Staff</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
                             </SelectContent>
@@ -181,7 +180,7 @@ export default function AdminPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Student ID</TableHead>
+                      <TableHead>Student/User ID</TableHead>
                       <TableHead>Meal</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>

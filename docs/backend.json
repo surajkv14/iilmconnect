@@ -5,7 +5,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a student or mess staff member.",
+      "description": "Represents a student, faculty, or mess staff member.",
       "properties": {
         "id": {
           "type": "string"
@@ -28,7 +28,7 @@
         },
         "userType": {
           "type": "string",
-          "enum": ["student", "mess_staff", "admin"]
+          "enum": ["student", "faculty", "mess_staff", "admin"]
         },
         "dietaryPreferences": {
           "type": "array",
