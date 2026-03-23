@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Utensils, TrendingDown, Users, Calendar, ArrowRight, Salad, Zap } from 'lucide-react';
+import { TrendingDown, Users, ArrowRight, Salad, Zap } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,8 +15,10 @@ export default function Home() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [today, setToday] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     // Determine today's date only on the client to avoid hydration errors
     setToday(new Date().toISOString().split('T')[0]);
   }, []);
@@ -38,6 +40,15 @@ export default function Home() {
     { name: 'Sun', count: 180 },
   ];
 
+  if (!mounted) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-12 w-1/4" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-2">
@@ -52,7 +63,7 @@ export default function Home() {
             <Users className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">482</div>
+            <div className="text-2xl font-bold">{bookings?.length || 482}</div>
             <p className="text-xs text-muted-foreground">+12% from last week</p>
           </CardContent>
         </Card>
@@ -117,7 +128,7 @@ export default function Home() {
                 Book Next Meal <ArrowRight className="size-4" />
               </Button>
             </Link>
-            <Link href="/profile">
+            <Link href={user ? `/profile/${user.uid}` : '/login'}>
               <Button className="w-full justify-between" variant="outline">
                 Update Allergies <ArrowRight className="size-4" />
               </Button>
@@ -127,7 +138,7 @@ export default function Home() {
                 <CardTitle className="text-sm">Sustainability Tip</CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
-                Book your meals at least 2 hours in advance to help mess staff reduce preparation waste.
+                Book your meals at least 24 hours in advance to help the mess team reduce preparation waste and optimize inventory.
               </CardContent>
             </Card>
           </CardContent>

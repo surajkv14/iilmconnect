@@ -21,8 +21,9 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Initiate email/password sign-up (non-blocking). */
 export function initiateEmailSignUp(authInstance: Auth, email: string, password: string): void {
-  if (!email.endsWith('@iilm.edu')) {
-    const error = new FirebaseError('auth/invalid-email', 'Sign-up is restricted to @iilm.edu email addresses.');
+  // Sign-up restriction to internal university domains
+  if (!email.endsWith('.edu')) {
+    const error = new FirebaseError('auth/invalid-email', 'Sign-up is restricted to university (.edu) email addresses.');
     errorEmitter.emit('auth-error', error);
     return;
   }
@@ -34,7 +35,8 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
       const userDocRef = doc(firestore, 'users', user.uid);
 
       let userType: 'admin' | 'student' = 'student';
-      if (email === 'admin@iilm.edu') {
+      // Basic admin check for the initial setup
+      if (email.startsWith('admin@')) {
         userType = 'admin';
       }
       
@@ -42,13 +44,11 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
       const displayName = email.split('@')[0];
       const photoURL = `https://picsum.photos/seed/${user.uid}/96/96`;
 
-      // Also update the user's profile in Firebase Auth
       await updateProfile(user, { 
         displayName: displayName,
         photoURL: photoURL,
       });
       
-      // Non-blocking write to create the user document
       setDocumentNonBlocking(userDocRef, {
         id: user.uid,
         email: user.email,
@@ -56,7 +56,9 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
         username: username,
         displayName: displayName,
         bio: '',
-        photoURL: photoURL
+        photoURL: photoURL,
+        dietaryPreferences: [],
+        allergies: []
       }, {});
     })
     .catch((error: FirebaseError) => {
@@ -74,9 +76,8 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
       
       const docSnap = await getDoc(userDocRef);
       if (!docSnap.exists()) {
-        // Doc doesn't exist, create it. This handles users created before this fix.
         let userType: 'admin' | 'student' = 'student';
-        if (email === 'admin@iilm.edu') {
+        if (email.startsWith('admin@')) {
             userType = 'admin';
         }
 
@@ -95,7 +96,9 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
             username: username,
             displayName: displayName,
             bio: '',
-            photoURL: photoURL
+            photoURL: photoURL,
+            dietaryPreferences: [],
+            allergies: []
         }, {});
       }
     })
