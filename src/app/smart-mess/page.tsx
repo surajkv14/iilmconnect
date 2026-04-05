@@ -427,12 +427,11 @@ export default function SmartMessPage() {
             <AlertDialogTitle>Confirm Meal Reservation</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to book <strong>{pendingBooking?.type}</strong> for <strong>{pendingBooking ? format(new Date(pendingBooking.date), 'PPP') : ''}</strong>? 
-              <br /><br />
-              <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
-                <AlertCircle className="size-4 shrink-0" />
-                <span>Reservations help us minimize food waste. Please ensure you attend the meal once booked. Bookings are final.</span>
-              </div>
             </AlertDialogDescription>
+            <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted p-2 rounded mt-2">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>Reservations help us minimize food waste. Please ensure you attend the meal once booked. Bookings are final.</span>
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Go Back</AlertDialogCancel>
