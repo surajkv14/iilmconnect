@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { Utensils, Bell, Vote, Plus, Trash2, ChefHat, ShieldAlert, Salad, X, History, MessageSquare, ListTodo, Check } from 'lucide-react';
+import { Utensils, Bell, Vote, Plus, Trash2, ChefHat, ShieldAlert, Salad, X, History, MessageSquare, ListTodo, Check, Phone, User as UserIcon, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, addDays } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 interface MealBooking { id: string; studentId: string; studentName: string; mealType: string; date: string; status: string; couponCode: string; }
 interface MessMeal { id: string; date: string; type: string; items: any[]; }
 interface Poll { id: string; question: string; options: { text: string; votes: number }[]; isActive: boolean; }
-interface Feedback { id: string; userId: string; userName: string; message: string; category: string; timestamp: any; }
+interface Feedback { id: string; userId: string; userName: string; urn: string; phoneNumber: string; message: string; category: string; mealType: string; mealDate: string; timestamp: any; }
 
 export default function MessStaffPage() {
   const { user, isUserLoading } = useUser();
@@ -259,7 +259,7 @@ export default function MessStaffPage() {
                       <Button size="icon" onClick={addPendingItem}><Plus className="size-4" /></Button>
                     </div>
                   </div>
-                  <Select value={itemCategory} onValueChange={setItemCategory}>
+                  <Select value={itemCategory} onValueChange={itemCategory}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Veg">Vegetarian</SelectItem>
@@ -430,19 +430,33 @@ export default function MessStaffPage() {
                     <div className="text-center py-12 text-muted-foreground italic">No feedback received yet.</div>
                   ) : feedbackList?.map(fb => (
                     <Card key={fb.id}>
-                      <CardHeader className="py-3">
+                      <CardHeader className="py-3 border-b">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">{fb.category}</Badge>
                             <span className="text-sm font-bold">{fb.userName}</span>
+                            <Badge variant="secondary" className="text-[10px]">URN: {fb.urn}</Badge>
                           </div>
                           <span className="text-[10px] text-muted-foreground">{fb.timestamp?.toDate() ? format(fb.timestamp.toDate(), 'PPP p') : 'Just now'}</span>
                         </div>
                       </CardHeader>
-                      <CardContent className="py-3 text-sm italic">
-                        "{fb.message}"
+                      <CardContent className="py-4 space-y-4">
+                        <div className="text-sm italic text-foreground">
+                          "{fb.message}"
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Phone className="size-3" /> {fb.phoneNumber}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Calendar className="size-3" /> {fb.mealDate}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <ChefHat className="size-3" /> <span className="capitalize">{fb.mealType}</span>
+                          </div>
+                        </div>
                       </CardContent>
-                      <CardFooter className="py-2 flex justify-end">
+                      <CardFooter className="py-2 flex justify-end bg-muted/20">
                         <Button variant="ghost" size="sm" className="text-destructive h-7" onClick={() => deleteDocumentNonBlocking(doc(firestore, 'feedback', fb.id))}>
                           <Trash2 className="mr-2 size-3" /> Dismiss
                         </Button>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { 
   UtensilsCrossed, 
   Ticket, 
@@ -16,7 +17,8 @@ import {
   Info, 
   MessageCircle,
   Send,
-  History
+  History,
+  AlertCircle
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
@@ -26,6 +28,16 @@ import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MealItem { name: string; category: 'Veg' | 'Non-Veg' | 'Vegan'; calories: number; }
 interface MessMeal { id: string; date: string; type: string; items: MealItem[]; }
@@ -72,7 +84,14 @@ export default function SmartMessPage() {
   // Feedback State
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [feedbackCategory, setFeedbackCategory] = useState("General");
+  const [feedbackURN, setFeedbackURN] = useState("");
+  const [feedbackPhone, setFeedbackPhone] = useState("");
+  const [feedbackMealType, setFeedbackMealType] = useState("lunch");
+  const [feedbackMealDate, setFeedbackMealDate] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  // Booking Confirmation State
+  const [pendingBooking, setPendingBooking] = useState<{ type: 'breakfast' | 'lunch' | 'dinner', date: string } | null>(null);
 
   // Hydration safety
   const [mounted, setMounted] = useState(false);
@@ -80,10 +99,10 @@ export default function SmartMessPage() {
 
   useEffect(() => {
     setMounted(true);
-    setDates({
-      tomorrow: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-      dayAfter: format(addDays(new Date(), 2), 'yyyy-MM-dd')
-    });
+    const tom = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+    const daf = format(addDays(new Date(), 2), 'yyyy-MM-dd');
+    setDates({ tomorrow: tom, dayAfter: daf });
+    setFeedbackMealDate(tom);
   }, []);
 
   // Fetch Menu
@@ -117,9 +136,8 @@ export default function SmartMessPage() {
     };
   }, [menuItems, activeTab, dates]);
 
-  const handleBookingToggle = (mealType: 'breakfast' | 'lunch' | 'dinner') => {
-    if (!user || !firestore || !dates) return;
-
+  const initiateBooking = (mealType: 'breakfast' | 'lunch' | 'dinner') => {
+    if (!user || !dates) return;
     const date = dates[activeTab];
     const mealId = `${date}-${mealType}`;
     const existingBooking = bookedSelections?.find(selection => selection.mealId === mealId);
@@ -132,20 +150,30 @@ export default function SmartMessPage() {
       deleteDocumentNonBlocking(doc(firestore, 'bookings', existingBooking.id));
       toast({ title: 'Booking Cancelled', description: 'Reservation removed.' });
     } else {
-      const couponCode = `SM-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      addDocumentNonBlocking(collection(firestore, 'bookings'), {
-        studentId: user.uid,
-        studentName: user.displayName || user.email,
-        mealId: mealId,
-        date: date,
-        mealType: mealType,
-        status: 'booked',
-        couponCode: couponCode,
-        timestamp: new Date().toISOString(),
-      });
-      
-      toast({ title: 'Meal Booked!', description: `Coupon: ${couponCode}. Show this at the counter!` });
+      setPendingBooking({ type: mealType, date });
     }
+  };
+
+  const confirmBooking = () => {
+    if (!user || !firestore || !pendingBooking) return;
+
+    const { type, date } = pendingBooking;
+    const mealId = `${date}-${type}`;
+    const couponCode = `SM-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    
+    addDocumentNonBlocking(collection(firestore, 'bookings'), {
+      studentId: user.uid,
+      studentName: user.displayName || user.email,
+      mealId: mealId,
+      date: date,
+      mealType: type,
+      status: 'booked',
+      couponCode: couponCode,
+      timestamp: new Date().toISOString(),
+    });
+    
+    toast({ title: 'Meal Booked!', description: `Coupon: ${couponCode}. Show this at the counter!` });
+    setPendingBooking(null);
   };
 
   const handleVote = (pollId: string, optionIndex: number) => {
@@ -171,18 +199,35 @@ export default function SmartMessPage() {
   };
 
   const handleSubmitFeedback = async () => {
-    if (!user || !feedbackMsg) return;
+    if (!user || !feedbackMsg || !feedbackURN || !feedbackPhone) {
+      toast({ variant: 'destructive', title: "Incomplete Form", description: "Please fill all required fields." });
+      return;
+    }
+
+    // Basic 10-digit phone validation
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(feedbackPhone)) {
+      toast({ variant: 'destructive', title: "Invalid Phone", description: "Please enter a valid 10-digit phone number." });
+      return;
+    }
+
     setIsSubmittingFeedback(true);
 
     addDocumentNonBlocking(collection(firestore, 'feedback'), {
       userId: user.uid,
       userName: user.displayName || user.email,
+      urn: feedbackURN,
+      phoneNumber: feedbackPhone,
       message: feedbackMsg,
       category: feedbackCategory,
+      mealType: feedbackMealType,
+      mealDate: feedbackMealDate,
       timestamp: serverTimestamp(),
     });
 
     setFeedbackMsg("");
+    setFeedbackURN("");
+    setFeedbackPhone("");
     setIsSubmittingFeedback(false);
     toast({ title: "Feedback Sent", description: "The mess team has received your message." });
   };
@@ -242,7 +287,7 @@ export default function SmartMessPage() {
                         size="sm"
                         variant={booking ? 'default' : 'outline'}
                         className="w-32"
-                        onClick={() => handleBookingToggle(type)}
+                        onClick={() => initiateBooking(type)}
                       >
                         {booking ? 'Booked' : 'Reserve'}
                       </Button>
@@ -312,24 +357,54 @@ export default function SmartMessPage() {
             <CardDescription>Direct feedback to the mess staff.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold text-muted-foreground">Category</label>
-              <Select value={feedbackCategory} onValueChange={setFeedbackCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="General">General</SelectItem>
-                  <SelectItem value="Food Quality">Food Quality</SelectItem>
-                  <SelectItem value="Service">Service</SelectItem>
-                  <SelectItem value="Hygiene">Hygiene</SelectItem>
-                  <SelectItem value="Suggestions">Suggestions</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Category</label>
+                <Select value={feedbackCategory} onValueChange={setFeedbackCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="General">General</SelectItem>
+                    <SelectItem value="Food Quality">Food Quality</SelectItem>
+                    <SelectItem value="Service">Service</SelectItem>
+                    <SelectItem value="Hygiene">Hygiene</SelectItem>
+                    <SelectItem value="Suggestions">Suggestions</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Meal Type</label>
+                <Select value={feedbackMealType} onValueChange={setFeedbackMealType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="breakfast">Breakfast</SelectItem>
+                    <SelectItem value="lunch">Lunch</SelectItem>
+                    <SelectItem value="dinner">Dinner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">URN</label>
+                <Input placeholder="Roll Number" value={feedbackURN} onChange={e => setFeedbackURN(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Phone</label>
+                <Input placeholder="10 Digits" value={feedbackPhone} onChange={e => setFeedbackPhone(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground">Meal Date</label>
+              <Input type="date" value={feedbackMealDate} onChange={e => setFeedbackMealDate(e.target.value)} />
+            </div>
+
             <div className="space-y-2">
               <label className="text-[10px] uppercase font-bold text-muted-foreground">Message</label>
               <Textarea 
                 placeholder="Share your thoughts..." 
-                className="min-h-[100px] text-sm"
+                className="min-h-[80px] text-sm"
                 value={feedbackMsg}
                 onChange={e => setFeedbackMsg(e.target.value)}
               />
@@ -345,6 +420,26 @@ export default function SmartMessPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!pendingBooking} onOpenChange={() => setPendingBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Meal Reservation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to book <strong>{pendingBooking?.type}</strong> for <strong>{pendingBooking ? format(new Date(pendingBooking.date), 'PPP') : ''}</strong>? 
+              <br /><br />
+              <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
+                <AlertCircle className="size-4 shrink-0" />
+                <span>Reservations help us minimize food waste. Please ensure you attend the meal once booked. Bookings are final.</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBooking}>Confirm Booking</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

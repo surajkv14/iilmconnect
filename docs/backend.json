@@ -89,8 +89,12 @@
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "userName": { "type": "string" },
+        "urn": { "type": "string" },
+        "phoneNumber": { "type": "string" },
         "message": { "type": "string" },
         "category": { "type": "string" },
+        "mealType": { "type": "string" },
+        "mealDate": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       }
     },
